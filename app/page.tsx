@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+'use client';
 import { 
   Lock, ScanFace, Droplets, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, X, Download, AlertCircle, RefreshCcw,
