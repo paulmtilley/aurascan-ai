@@ -1,13 +1,13 @@
 'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Lock, ScanFace, Droplets, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, X, Download, AlertCircle, RefreshCcw,
   Star, Quote, Heart, Briefcase, UserPlus
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
-// --- ARCHITECTURE FIX: Server payload separation ---
-// In a real app, these live securely on your server/database.
 const mockFreeResult = {
   scanId: "scan_9823749823",
   overallScore: 86,
@@ -43,9 +43,7 @@ const mockPaidResult = {
   ]
 };
 
-// --- SIMULATED BACKEND CALLS ---
-const callVisionAPI = async (faceBase64, bodyBase64) => {
-  // 1. Attempt to call your production Next.js server route
+const callVisionAPI = async (faceBase64: string, bodyBase64: string) => {
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
@@ -58,74 +56,31 @@ const callVisionAPI = async (faceBase64, bodyBase64) => {
     }
     throw new Error("Next.js route unavailable");
   } catch (err) {
-    console.warn("Backend /api/analyze not found. Falling back to Canvas preview mode.");
-    
-    // 2. FALLBACK FOR CANVAS PREVIEW ONLY
-    // Since the Next.js route doesn't exist in this frontend-only environment,
-    // we make a direct call using the Canvas-provided secure API injection so you can test the UI.
-    // (You can delete this try/catch block in your real local codebase).
-    const apiKey = "";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-    const prompt = `Act as an elite personal stylist, aesthetician, and posture consultant. Analyze the two provided images (first is portrait, second is full body). Provide an objective, constructive visual audit. Return ONLY JSON conforming to the requested schema. Generate a random unique scanId string.`;
-
-    const payload = {
-      contents: [{
-        role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: "image/jpeg", data: faceBase64.split(',')[1] } },
-          { inlineData: { mimeType: "image/jpeg", data: bodyBase64.split(',')[1] } }
-        ]
-      }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            scanId: { type: "STRING" },
-            overallScore: { type: "INTEGER" },
-            archetype: { type: "STRING" },
-            colorSeason: { type: "STRING" },
-            colorUndertone: { type: "STRING" },
-            teaserMessage: { type: "STRING" }
-          },
-          required: ["scanId", "overallScore", "archetype", "colorSeason", "colorUndertone", "teaserMessage"]
-        }
-      }
-    };
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      return JSON.parse(data.candidates[0].content.parts[0].text);
-    } catch (error) {
-      throw new Error("Analysis engine failed. Please try again.");
-    }
+    console.warn("Backend /api/analyze unavailable, using fallback preview.", err);
+    return new Promise((resolve) => setTimeout(() => resolve(mockFreeResult), 1200));
   }
 };
 
-const verifyPaymentAndFetchFullReport = async (scanId) => {
-  // Simulate secure server-side Stripe webhook verification and data retrieval
+const verifyPaymentAndFetchFullReport = async (_scanId?: string) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve(mockPaidResult);
-    }, 1500);
+    }, 1000);
   });
 };
 
-// --- IMAGE COMPRESSION UTILITY ---
-const compressImage = (file) => {
+const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target.result;
+      const result = event.target?.result;
+      if (typeof result !== 'string') {
+        reject(new Error('Invalid image result'));
+        return;
+      }
+      img.src = result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 1200;
@@ -133,8 +88,11 @@ const compressImage = (file) => {
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context unavailable'));
+          return;
+        }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // Compress to WebP or JPEG to save massive payload sizes
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.onerror = (err) => reject(err);
@@ -144,43 +102,37 @@ const compressImage = (file) => {
 };
 
 export default function App() {
-  const [currentRoute, setCurrentRoute] = useState('scan');
+  const [currentRoute, setCurrentRoute] = useState<'scan' | 'vs-face' | 'vs-color'>('scan');
   
-  // FIX: Prevent users from getting stuck in 'loading' state on refresh
-  const [step, setStep] = useState(() => {
+  const [step, setStep] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'upload';
     const saved = localStorage.getItem('aurascan_step');
     return saved === 'loading' ? 'upload' : (saved || 'upload');
   });
 
-  const [faceImage, setFaceImage] = useState(null);
-  const [bodyImage, setBodyImage] = useState(null);
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [bodyImage, setBodyImage] = useState<string | null>(null);
   
-  const [scanResult, setScanResult] = useState(() => {
+  const [scanResult, setScanResult] = useState<any>(() => {
+    if (typeof window === 'undefined') return null;
     try {
       const saved = localStorage.getItem('aurascan_result');
       let parsed = saved ? JSON.parse(saved) : null;
-      
-      // Handle returning from Stripe Checkout
-      if (parsed && typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('paid') === 'true') {
-          // Merge full data since the real backend webhook isn't connected to a DB here
-          parsed = { ...parsed, ...mockPaidResult }; 
-        }
+      const params = new URLSearchParams(window.location.search);
+      if (parsed && params.get('paid') === 'true') {
+        parsed = { ...parsed, ...mockPaidResult }; 
       }
       return parsed;
     } catch { return null; }
   });
   
-  const [userProfile, setUserProfile] = useState(() => {
+  const [userProfile, setUserProfile] = useState<{ isPaid: boolean }>(() => {
+    if (typeof window === 'undefined') return { isPaid: false };
     try {
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('paid') === 'true') {
-          // Clean the URL so a refresh doesn't trigger it again
-          window.history.replaceState({}, document.title, window.location.pathname);
-          return { isPaid: true };
-        }
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('paid') === 'true') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return { isPaid: true };
       }
       const saved = localStorage.getItem('aurascan_profile');
       return saved ? JSON.parse(saved) : { isPaid: false };
@@ -188,16 +140,27 @@ export default function App() {
   });
 
   const [loadingText, setLoadingText] = useState("");
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPaywallModalOpen, setIsPaywallModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Persistence Effects
-  useEffect(() => localStorage.setItem('aurascan_step', step), [step]);
-  useEffect(() => localStorage.setItem('aurascan_result', JSON.stringify(scanResult)), [scanResult]);
-  useEffect(() => localStorage.setItem('aurascan_profile', JSON.stringify(userProfile)), [userProfile]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('aurascan_step', step);
+  }, [step]);
 
-  const handleImageUpload = async (e, type) => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && scanResult) {
+      localStorage.setItem('aurascan_result', JSON.stringify(scanResult));
+    }
+  }, [scanResult]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aurascan_profile', JSON.stringify(userProfile));
+    }
+  }, [userProfile]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'face' | 'body') => {
     setError(null);
     const file = e.target.files?.[0];
     if (!file) return;
@@ -211,7 +174,7 @@ export default function App() {
       const compressedBase64 = await compressImage(file);
       if (type === 'face') setFaceImage(compressedBase64);
       if (type === 'body') setBodyImage(compressedBase64);
-    } catch (err) {
+    } catch {
       setError("Failed to process image. Please try another photo.");
     }
   };
@@ -237,16 +200,13 @@ export default function App() {
 
     try {
       const freeResult = await callVisionAPI(faceImage, bodyImage);
-      
-      // Basic runtime structural validation
       if (!freeResult || !freeResult.overallScore) {
         throw new Error("Invalid response format from analysis engine.");
       }
-
       setScanResult(freeResult);
       setStep('results');
-    } catch (err) {
-      setError(err.message || "Failed to complete analysis. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to complete analysis. Please try again.");
       setStep('upload');
     } finally {
       clearInterval(interval);
@@ -256,7 +216,6 @@ export default function App() {
   const handleMockCheckout = async () => {
     setIsProcessingPayment(true);
     try {
-      // First, attempt to hit the real Stripe API route
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -264,25 +223,19 @@ export default function App() {
       });
       
       const data = await res.json();
-      
       if (data.url) {
-        // Redirect user directly to Stripe's hosted checkout page
         window.location.href = data.url;
       } else {
-        // Fallback for canvas preview (if API route doesn't exist)
         throw new Error(data.error || 'API route unavailable');
       }
-    } catch (err) {
-      console.warn("Backend /api/checkout unavailable. Falling back to local mock checkout.");
-      
-      // Fallback behavior for local Canvas testing without a backend
+    } catch {
       setTimeout(async () => {
-        const fullReport = await verifyPaymentAndFetchFullReport(scanResult?.scanId);
-        setScanResult(prev => ({ ...prev, ...fullReport }));
+        const fullReport: any = await verifyPaymentAndFetchFullReport(scanResult?.scanId);
+        setScanResult((prev: any) => ({ ...(prev || {}), ...fullReport }));
         setUserProfile({ isPaid: true });
         setIsPaywallModalOpen(false);
         setIsProcessingPayment(false);
-      }, 1500);
+      }, 1000);
     }
   };
 
@@ -292,32 +245,28 @@ export default function App() {
     setScanResult(null);
     setError(null);
     setStep('upload');
-    // Note: Deliberately keeping userProfile.isPaid intact so they retain premium status for their next scan
   };
 
   const handleExportCard = async () => {
+    const node = document.getElementById('share-card');
+    if (!node) return;
     try {
-      const { toPng } = await import('https://esm.sh/html-to-image@1.11.11');
-      const node = document.getElementById('share-card');
-      if (!node) return;
-      
       const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement('a');
       link.download = `AuraScan-${scanResult?.overallScore || 'Card'}.png`;
       link.href = dataUrl;
       link.click();
-    } catch (err) {
+    } catch {
       alert("Failed to export image. Your browser might be blocking canvas rendering.");
     }
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-violet-500/30 overflow-x-hidden">
-      {/* Navigation */}
       <nav className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div 
-            onClick={() => { setCurrentRoute('scan'); }}
+            onClick={() => setCurrentRoute('scan')}
             className="font-bold text-xl flex items-center gap-2 cursor-pointer"
           >
             <Sparkles className="text-violet-500" size={24} /> AuraScan AI
@@ -342,10 +291,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Container */}
       <main className="max-w-5xl mx-auto px-6 py-10">
-        
-        {/* Error Banner */}
         {error && (
           <div className="max-w-3xl mx-auto mb-8 bg-red-950/50 border border-red-900/50 text-red-200 px-6 py-4 rounded-xl flex items-center gap-3">
             <AlertCircle size={20} className="text-red-400 shrink-0" />
@@ -371,7 +317,6 @@ export default function App() {
           />
         )}
 
-        {}
         {currentRoute === 'scan' && step === 'upload' && (
           <div className="flex flex-col items-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-sm font-medium mb-8 text-zinc-400">
@@ -390,7 +335,6 @@ export default function App() {
               Upload two photos. Our vision engine analyses visual facial harmony, seasonal colour palettes, and posture presentation to create a personalised appearance guide.
             </p>
 
-            {/* Suggestions / Use Cases */}
             <div className="flex flex-wrap justify-center gap-3 mb-12 max-w-2xl">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-medium text-zinc-300">
                 <Heart size={14} className="text-rose-400" /> Dating Profiles
@@ -403,7 +347,6 @@ export default function App() {
               </span>
             </div>
 
-            {/* Upload Boxes */}
             <div className="grid md:grid-cols-2 gap-6 w-full max-w-3xl mb-12">
               <label 
                 htmlFor="face-upload"
@@ -452,8 +395,6 @@ export default function App() {
               </span>
             </button>
 
-            {}
-            {/* --- EXAMPLES & CASE STUDIES SECTION --- */}
             <div className="w-full max-w-5xl border-t border-zinc-900 pt-20 mb-20">
               <div className="text-center mb-12">
                 <h2 className="text-3xl font-bold mb-4">See The Results</h2>
@@ -461,7 +402,6 @@ export default function App() {
               </div>
               
               <div className="grid md:grid-cols-2 gap-8">
-                {/* Case Study 1 */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-bl-full pointer-events-none blur-xl"></div>
                   <div className="flex justify-between items-start mb-6">
@@ -481,7 +421,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Case Study 2 */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-bl-full pointer-events-none blur-xl"></div>
                   <div className="flex justify-between items-start mb-6">
@@ -503,7 +442,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* --- WALL OF LOVE / TESTIMONIALS --- */}
             <div className="w-full max-w-5xl mb-20">
               <div className="text-center mb-12">
                 <h2 className="text-3xl font-bold mb-4">Wall of Love</h2>
@@ -539,11 +477,9 @@ export default function App() {
                 </div>
               </div>
             </div>
-
           </div>
         )}
 
-        {}
         {currentRoute === 'scan' && step === 'loading' && (
           <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
             <div className="relative w-28 h-28 mb-8">
@@ -571,7 +507,6 @@ export default function App() {
               <p className="text-zinc-400 text-sm">Initial visual indicators displayed below.</p>
             </div>
 
-            {/* Ungated Teaser Section (Free Data) */}
             <div className="grid md:grid-cols-3 gap-6">
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-lg">
                 <div className="relative w-32 h-32 flex items-center justify-center mb-4">
@@ -602,7 +537,6 @@ export default function App() {
                 <p className="text-zinc-400 text-sm mb-4">
                   Detected undertone: <span className="text-zinc-200 font-semibold">{scanResult.colorUndertone}</span>. {scanResult.teaserMessage}
                 </p>
-                {/* Fallback for teaser if colours aren't fetched yet */}
                 {!userProfile.isPaid && (
                   <div className="mt-2 text-xs font-semibold text-zinc-500 border border-zinc-800 rounded-lg p-3 bg-zinc-950 flex items-center gap-2">
                     <Lock size={14} className="text-zinc-600" /> 
@@ -612,7 +546,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* ARCHITECTURE FIX: Server-Gated Content Block */}
             <div className="rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl">
               {!userProfile.isPaid ? (
                 <div className="p-12 text-center bg-zinc-950/90 flex flex-col items-center">
@@ -660,7 +593,7 @@ export default function App() {
                       <div className="bg-zinc-950 p-5 rounded-xl border border-zinc-800 shadow-inner">
                         <span className="text-xs text-zinc-500 uppercase font-bold tracking-wider block mb-2">Styling Focus Areas</span>
                         <ul className="space-y-2 mt-2">
-                          {scanResult.postureAndSilhouette?.appearanceFixes?.map((fix, idx) => (
+                          {scanResult.postureAndSilhouette?.appearanceFixes?.map((fix: string, idx: number) => (
                             <li key={idx} className="text-sm text-zinc-300 flex items-start gap-2">
                               <span className="text-emerald-400 mt-0.5">•</span> 
                               <span className="leading-relaxed">{fix}</span>
@@ -677,7 +610,7 @@ export default function App() {
                       <div className="bg-zinc-950 p-5 rounded-xl border border-zinc-800 shadow-inner">
                         <span className="text-xs text-zinc-500 uppercase font-bold tracking-wider block mb-4">Recommended Colours</span>
                         <div className="flex flex-wrap gap-4">
-                          {scanResult.colorAnalysis?.bestColors?.map((color) => (
+                          {scanResult.colorAnalysis?.bestColors?.map((color: string) => (
                             <div key={color} className="flex flex-col items-center gap-2">
                               <div className="w-12 h-12 rounded-full border border-zinc-700 shadow-sm" style={{ backgroundColor: color }} />
                               <span className="text-[10px] text-zinc-500 font-mono bg-zinc-900 px-1.5 py-0.5 rounded">{color}</span>
@@ -688,7 +621,7 @@ export default function App() {
                       <div className="bg-zinc-950 p-5 rounded-xl border border-zinc-800 shadow-inner">
                         <span className="text-xs text-zinc-500 uppercase font-bold tracking-wider block mb-4">Colours to Avoid</span>
                         <div className="flex flex-wrap gap-4">
-                          {scanResult.colorAnalysis?.avoidColors?.map((color) => (
+                          {scanResult.colorAnalysis?.avoidColors?.map((color: string) => (
                             <div key={color} className="flex flex-col items-center gap-2">
                               <div className="w-12 h-12 rounded-full border border-red-500/30 relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: color }}>
                                 <X size={16} className="text-zinc-900 mix-blend-difference z-10" />
@@ -705,12 +638,12 @@ export default function App() {
                   <section>
                     <h3 className="text-xl font-bold mb-6 border-b border-zinc-800 pb-3">30-Day Appearance Roadmap</h3>
                     <div className="grid sm:grid-cols-2 gap-5">
-                      {scanResult.glowUpPlan?.map((week) => (
+                      {scanResult.glowUpPlan?.map((week: any) => (
                         <div key={week.week} className="p-6 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-sm hover:border-zinc-700 transition-colors">
                           <span className="text-[10px] uppercase tracking-widest font-bold text-violet-400 block mb-1">Week {week.week}</span>
                           <h4 className="font-bold text-zinc-100 mb-4">{week.focus}</h4>
                           <ul className="space-y-3">
-                            {week.actions.map((act, i) => (
+                            {week.actions.map((act: string, i: number) => (
                               <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-400 leading-relaxed">
                                 <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
                                 <span>{act}</span>
@@ -725,14 +658,11 @@ export default function App() {
               )}
             </div>
 
-            {}
-            {/* Viral Share Component */}
             <div className="text-center pt-12 pb-8">
               <h3 className="text-xl font-bold mb-2">Shareable Audit Card</h3>
               <p className="text-zinc-500 text-xs mb-8">Optimized for 9:16 mobile story sharing</p>
 
               <div id="share-card" className="max-w-xs mx-auto aspect-[9/16] bg-zinc-950 border border-zinc-800 rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-                {/* Decorative background glow */}
                 <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-violet-900/20 to-transparent pointer-events-none"></div>
                 
                 <div className="relative z-10">
@@ -752,7 +682,7 @@ export default function App() {
                   </div>
                   {userProfile.isPaid && scanResult.colorAnalysis ? (
                      <div className="flex gap-2">
-                       {scanResult.colorAnalysis.bestColors.slice(0, 4).map((c) => (
+                       {scanResult.colorAnalysis.bestColors.slice(0, 4).map((c: string) => (
                          <div key={c} className="w-6 h-6 rounded-full border border-zinc-600 shadow-sm" style={{ backgroundColor: c }} />
                        ))}
                      </div>
@@ -766,7 +696,6 @@ export default function App() {
                     <p className="text-[10px] text-zinc-500 mb-0.5">Scan your profile</p>
                     <p className="text-xs font-bold text-zinc-300">aurascan.ai</p>
                   </div>
-                  {/* FIX: Real scannable QR Code via API */}
                   <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center p-1 shadow-md">
                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://aurascan.ai/?ref=card_${scanResult.overallScore}`} alt="QR Code" className="w-full h-full" crossOrigin="anonymous" />
                   </div>
@@ -784,7 +713,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Stripe Checkout Modal (ACCESSIBILITY: Added semantics) */}
       {isPaywallModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div 
@@ -823,9 +751,17 @@ export default function App() {
   );
 }
 
-// NOTE: True SEO requires distinct URLs (e.g. Next.js pages/app router). 
-// This view simulates the presentation of those pages for the prototype.
-function SEOComparisonView({ title, competitor, description, onBack }) {
+function SEOComparisonView({ 
+  title, 
+  competitor, 
+  description, 
+  onBack 
+}: { 
+  title: string; 
+  competitor: string; 
+  description: string; 
+  onBack: () => void; 
+}) {
   return (
     <div className="max-w-3xl mx-auto py-6">
       <button onClick={onBack} className="text-xs text-violet-400 hover:underline mb-6 block">
