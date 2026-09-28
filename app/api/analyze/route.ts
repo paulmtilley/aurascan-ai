@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const faceData = extractMimeAndData(face);
     const bodyData = extractMimeAndData(body);
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Act as an elite personal stylist, aesthetician, and posture consultant. Analyze the two provided images (first is portrait, second is full body). Provide an objective, constructive visual appearance audit. Return ONLY JSON conforming to the requested schema. Generate a random unique scanId string.`;
 
