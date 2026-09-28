@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
-export const maxDuration = 30;
+export const maxDuration = 45;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     if (!face || !body) {
       return NextResponse.json(
-        { error: 'Both face and body images are required.' },
+        { error: 'Both face and body images are required.' }, 
         { status: 400 }
       );
     }
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Missing GEMINI_API_KEY environment variable.' },
+        { error: 'Missing GEMINI_API_KEY environment variable.' }, 
         { status: 500 }
       );
     }
@@ -39,8 +39,7 @@ export async function POST(req: NextRequest) {
 
     const prompt = `Act as an elite personal stylist, aesthetician, and posture consultant. Analyze the two provided images (first is portrait, second is full body). Provide an objective, constructive visual appearance audit. Generate a unique random scanId string. Return ONLY valid JSON adhering strictly to the schema.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const requestPayload = {
       contents: [
         prompt,
         {
@@ -78,12 +77,45 @@ export async function POST(req: NextRequest) {
           ]
         }
       }
-    });
+    };
 
-    const outputText = response.text;
+    // Helper: Execute with retry on 503 high-demand spikes
+    const executeWithRetry = async (modelName: string, attempts = 3, delayMs = 1200) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await ai.models.generateContent({
+            model: modelName,
+            ...requestPayload
+          });
+        } catch (err: any) {
+          const isDemandSpike = err?.message?.includes('503') || err?.message?.includes('high demand') || err?.status === 503;
+          if (isDemandSpike && i < attempts - 1) {
+            console.warn(`[Gemini 503] Spiked demand on ${modelName}. Retrying in ${delayMs}ms (Attempt ${i + 1}/${attempts})...`);
+            await new Promise((res) => setTimeout(res, delayMs));
+            delayMs *= 1.5;
+          } else {
+            throw err;
+          }
+        }
+      }
+    };
+
+    let response;
+    try {
+      response = await executeWithRetry('gemini-3.8-flash');
+    } catch (primaryErr: any) {
+      console.warn('[Gemini Failover] Primary model unavailable, routing to gemini-3-flash fallback...');
+      try {
+        response = await executeWithRetry('gemini-3-flash');
+      } catch (fallbackErr) {
+        throw primaryErr;
+      }
+    }
+
+    const outputText = response?.text;
     if (!outputText) {
       return NextResponse.json(
-        { error: 'The vision model did not return output. The image may have triggered a safety filter.' },
+        { error: 'Vision model completed without output text.' }, 
         { status: 422 }
       );
     }
@@ -91,10 +123,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(JSON.parse(outputText));
 
   } catch (error: any) {
-    console.error('[Gemini Processing Error]:', error);
+    console.error('[Gemini Route Error]:', error);
     return NextResponse.json(
-      { error: error.message || 'Vision analysis failed.' },
-      { status: 500 }
+      { error: error.message || 'Vision analysis temporarily unavailable due to upstream demand.' }, 
+      { status: 503 }
     );
   }
 }
