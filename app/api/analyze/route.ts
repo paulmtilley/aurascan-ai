@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const prompt = `Act as an elite personal stylist, aesthetician, and posture consultant. Analyze the two provided images (first is portrait, second is full body). Provide an objective, constructive visual appearance audit. Generate a unique random scanId string. Return ONLY valid JSON adhering strictly to the schema.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: [
         prompt,
         {
