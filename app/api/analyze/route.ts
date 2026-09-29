@@ -37,7 +37,19 @@ export async function POST(req: NextRequest) {
     const faceData = extractData(face);
     const bodyData = extractData(body);
 
-    const prompt = `Act as an elite personal stylist, aesthetician, and posture consultant. Analyze the two provided images (first is portrait, second is full body). Provide an objective, constructive visual appearance audit. Generate a unique random scanId string. Return ONLY valid JSON adhering strictly to the schema.`;
+    const prompt = `Act as an elite personal stylist, aesthetician, and executive image consultant. 
+Analyze the two provided images (portrait and full body). 
+Provide an objective, highly actionable appearance audit. 
+Generate a unique random scanId string.
+Adhere strictly to the requested schema, ensuring:
+- Free tier summary: Aura score, archetype, seasonal color profile, and undertone evaluation.
+- Detailed paid deliverables:
+  1. Facial harmony metrics (jawline definition and lighting response).
+  2. Hex color swatches (best enhancing colors vs colors to limit).
+  3. Precise photography and grooming specifications (optimal portrait focal length, lighting Kelvin range, camera tilt, and neckline/taper demarcations).
+  4. 3 distinct capsule outfits (Casual Sharp, Business Casual, Evening Occasion) using colors and silhouettes tailored to their detected profile.
+  5. 4-week structured appearance protocol.
+Return ONLY valid JSON adhering strictly to the schema.`;
 
     const requestPayload = {
       contents: [
@@ -65,7 +77,78 @@ export async function POST(req: NextRequest) {
             archetype: { type: Type.STRING },
             colorSeason: { type: Type.STRING },
             colorUndertone: { type: Type.STRING },
-            teaserMessage: { type: Type.STRING }
+            teaserMessage: { type: Type.STRING },
+            faceAnalysis: {
+              type: Type.OBJECT,
+              properties: {
+                harmonyScore: { type: Type.INTEGER },
+                jawlineDefinition: { type: Type.STRING },
+                skinClarityNotes: { type: Type.STRING }
+              },
+              required: ['harmonyScore', 'jawlineDefinition', 'skinClarityNotes']
+            },
+            colorAnalysis: {
+              type: Type.OBJECT,
+              properties: {
+                bestColors: { 
+                  type: Type.ARRAY, 
+                  items: { type: Type.STRING } 
+                },
+                avoidColors: { 
+                  type: Type.ARRAY, 
+                  items: { type: Type.STRING } 
+                },
+                recommendedJewelry: { type: Type.STRING },
+                contrastLevel: { type: Type.STRING }
+              },
+              required: ['bestColors', 'avoidColors', 'recommendedJewelry', 'contrastLevel']
+            },
+            groomingAndLightingSpecs: {
+              type: Type.OBJECT,
+              properties: {
+                focalLength: { type: Type.STRING },
+                lightingKelvin: { type: Type.STRING },
+                cameraAngleRecommendation: { type: Type.STRING },
+                hairAndBeardDemarcation: { type: Type.STRING }
+              },
+              required: [
+                'focalLength', 
+                'lightingKelvin', 
+                'cameraAngleRecommendation', 
+                'hairAndBeardDemarcation'
+              ]
+            },
+            capsuleOutfits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  setting: { type: Type.STRING },
+                  paletteNote: { type: Type.STRING },
+                  pieces: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING } 
+                  }
+                },
+                required: ['title', 'setting', 'paletteNote', 'pieces']
+              }
+            },
+            glowUpPlan: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  week: { type: Type.INTEGER },
+                  focus: { type: Type.STRING },
+                  actions: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING } 
+                  }
+                },
+                required: ['week', 'focus', 'actions']
+              }
+            }
           },
           required: [
             'scanId',
@@ -73,24 +156,27 @@ export async function POST(req: NextRequest) {
             'archetype',
             'colorSeason',
             'colorUndertone',
-            'teaserMessage'
+            'teaserMessage',
+            'faceAnalysis',
+            'colorAnalysis',
+            'groomingAndLightingSpecs',
+            'capsuleOutfits',
+            'glowUpPlan'
           ]
         }
       }
     };
 
-    // Replace candidateModels with:
-const candidateModels = [
-  'gemini-3.8-flash',
-  'gemini-3.8-flash-lite',
-  'gemini-2.5-flash-lite'
-];
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.8-flash-lite',
+      'gemini-2.5-flash-lite'
+    ];
 
     let lastError: any = null;
     let outputText: string | null = null;
 
     for (const modelName of candidateModels) {
-      // Allow up to 2 attempts per valid model to handle transient 503 spikes
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           const response = await ai.models.generateContent({
