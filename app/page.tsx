@@ -337,18 +337,17 @@ export default function App() {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    const reportElement = document.getElementById('printable-report');
-    if (!reportElement) return;
-
+  const handleDownloadPdf = () => {
     setIsGeneratingPdf(true);
     try {
-      const canvas = await html2canvas(reportElement, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#09090b',
-        logging: false
-      });
+      // Use the browser's hardware-accelerated print-to-PDF driver
+      window.print();
+    } catch (err) {
+      console.error("Print trigger failed:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({

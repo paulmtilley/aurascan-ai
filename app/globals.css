@@ -24,3 +24,52 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Print-to-PDF Formatting for AuraScan Dossier */
+@media print {
+  /* Hide non-report elements: header, nav, action buttons, modals, footer */
+  header,
+  nav,
+  footer,
+  button,
+  .no-print,
+  #share-card {
+    display: none !important;
+  }
+
+  /* Force background colors and dark theme contrast to print accurately */
+  body, 
+  html {
+    background-color: #09090b !important;
+    color: #f4f4f5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure the printable report container expands cleanly across A4 pages */
+  #printable-report {
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: block !important;
+  }
+
+  /* Prevent awkward page cuts in cards and grid sections */
+  section,
+  .grid > div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 1rem !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+}
