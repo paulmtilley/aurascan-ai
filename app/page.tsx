@@ -347,12 +347,14 @@ export default function App() {
 
       const primary = scanResult || mockFreeResult;
       const paid = scanResult?.faceAnalysis ? scanResult : mockPaidResult;
+      const scanId = primary.scanId || 'scn_sample';
 
-      // Dark theme canvas background
+      // ==================== PAGE 1 ====================
+      // Dark Theme Background
       doc.setFillColor(9, 9, 11);
       doc.rect(0, 0, 210, 297, 'F');
 
-      // Confidential Header
+      // Top Confidential Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(140, 140, 150);
@@ -365,41 +367,41 @@ export default function App() {
       // Score Badge Top Right
       doc.setFillColor(24, 24, 27);
       doc.roundedRect(146, 14, 50, 18, 2, 2, 'F');
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(160, 160, 170);
       doc.text('AURA SCORE', 150, 20);
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setTextColor(167, 139, 250);
       doc.text(`${primary.overallScore || 71} / 100`, 150, 28);
 
       let y = 38;
 
-      // Overview Banner
+      // Overview Panel
       doc.setFillColor(18, 18, 22);
       doc.roundedRect(14, y, 182, 18, 2, 2, 'F');
       doc.setFontSize(8);
       doc.setTextColor(167, 139, 250);
       doc.text(`ARCHETYPE: ${(primary.archetype || 'Urban Sport Minimalist').toUpperCase()}`, 18, y + 6);
       doc.setTextColor(34, 211, 238);
-      doc.text(`COLOUR SEASON: ${(primary.colorSeason || 'Soft Summer').toUpperCase()}  |  UNDERTONE: ${(primary.colorUndertone || 'Cool-Neutral').toUpperCase()}`, 18, y + 13);
+      doc.text(`COLOUR SEASON: ${(primary.colorSeason || 'Soft Summer').toUpperCase()}  |  UNDERTONE: ${(primary.colorUndertone || 'Cool-Neutral').toUpperCase()}`, 18, y + 12);
 
       y += 24;
 
-      // Section 1: Facial Harmony
+      // Section 1: Facial Analysis
       doc.setFontSize(10);
       doc.setTextColor(255, 255, 255);
       doc.text('1. Facial Harmony & Illumination Analysis', 14, y);
       y += 4;
 
       doc.setFillColor(18, 18, 22);
-      doc.roundedRect(14, y, 182, 22, 2, 2, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(140, 140, 150);
-      doc.text('Mandibular & Jawline Definition:', 18, y + 6);
+      doc.roundedRect(14, y, 182, 20, 2, 2, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 160);
+      doc.text('Mandibular & Jawline Definition:', 18, y + 5);
       doc.setTextColor(220, 220, 230);
-      doc.text(doc.splitTextToSize(paid.faceAnalysis?.jawlineDefinition || mockPaidResult.faceAnalysis.jawlineDefinition, 170), 18, y + 11);
+      doc.text(doc.splitTextToSize(paid.faceAnalysis?.jawlineDefinition || mockPaidResult.faceAnalysis.jawlineDefinition, 170), 18, y + 10);
 
-      y += 28;
+      y += 26;
 
       // Section 2: Photography & Grooming Specs
       doc.setFontSize(10);
@@ -409,69 +411,120 @@ export default function App() {
 
       doc.setFillColor(18, 18, 22);
       doc.roundedRect(14, y, 182, 24, 2, 2, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(140, 140, 150);
-      const specs = paid.groomingAndLightingSpecs || mockPaidResult.groomingAndLightingSpecs;
-      doc.text(`Optimal Focal Length: ${specs.focalLength}`, 18, y + 6);
-      doc.text(`Colour Temperature: ${specs.lightingKelvin}`, 105, y + 6);
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 160);
+      doc.text(`Optimal Focal Length: ${paid.groomingAndLightingSpecs?.focalLength || '85mm - 105mm'}`, 18, y + 5);
+      doc.text(`Colour Temperature: ${paid.groomingAndLightingSpecs?.lightingKelvin || '5200K - 5600K'}`, 100, y + 5);
       doc.setTextColor(220, 220, 230);
-      doc.text(doc.splitTextToSize(`Camera Axis: ${specs.cameraAngleRecommendation}`, 170), 18, y + 12);
-      doc.text(doc.splitTextToSize(`Neckline: ${specs.hairAndBeardDemarcation}`, 170), 18, y + 18);
+      doc.text(doc.splitTextToSize(`Camera Axis: ${paid.groomingAndLightingSpecs?.cameraAngleRecommendation || mockPaidResult.groomingAndLightingSpecs.cameraAngleRecommendation}`, 170), 18, y + 11);
+      doc.text(doc.splitTextToSize(`Neckline Demarcation: ${paid.groomingAndLightingSpecs?.hairAndBeardDemarcation || mockPaidResult.groomingAndLightingSpecs.hairAndBeardDemarcation}`, 170), 18, y + 17);
 
       y += 30;
 
       // Section 3: Capsule Outfits
       doc.setFontSize(10);
       doc.setTextColor(255, 255, 255);
-      doc.text('3. Curated Seasonal Capsule (3 Key Formulas)', 14, y);
+      doc.text('3. Curated Seasonal Capsule (3 Key Outfits)', 14, y);
       y += 4;
 
-      const outfits = (paid.capsuleOutfits && paid.capsuleOutfits.length > 0)
-        ? paid.capsuleOutfits
-        : defaultCapsuleOutfits;
-
+      const outfits = (paid.capsuleOutfits && paid.capsuleOutfits.length > 0) ? paid.capsuleOutfits : defaultCapsuleOutfits;
       outfits.forEach((outfit: any, idx: number) => {
         doc.setFillColor(18, 18, 22);
-        doc.roundedRect(14, y, 182, 19, 2, 2, 'F');
+        doc.roundedRect(14, y, 182, 22, 2, 2, 'F');
         doc.setFontSize(8);
         doc.setTextColor(167, 139, 250);
         doc.text(`Look #${idx + 1}: ${outfit.title} (${outfit.setting})`, 18, y + 5);
+        doc.setFontSize(7);
         doc.setTextColor(210, 210, 220);
-        const piecesText = (outfit.pieces || []).join('  *  ');
+        const piecesText = (outfit.pieces || []).join('   *   ');
         doc.text(doc.splitTextToSize(piecesText, 170), 18, y + 11);
-        y += 23;
+        y += 26;
       });
 
-      y += 3;
+      // Page 1 Footer
+      doc.setFontSize(7);
+      doc.setTextColor(110, 110, 120);
+      doc.text('Page 1 of 2  *  Generated by AuraScan AI  *  support@aurascan.ai', 14, 290);
+      doc.text(`Ref: ${scanId}`, 150, 290);
 
-      // Section 4: 30-Day Protocol
+      // ==================== PAGE 2 ====================
+      doc.addPage();
+      doc.setFillColor(9, 9, 11);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      y = 18;
+
+      // Section 4: 30-Day Appearance Roadmap
       doc.setFontSize(10);
       doc.setTextColor(255, 255, 255);
       doc.text('4. 30-Day Appearance Roadmap', 14, y);
-      y += 4;
+      y += 5;
 
       const roadmap = paid.glowUpPlan || mockPaidResult.glowUpPlan;
       roadmap.forEach((week: any) => {
         doc.setFillColor(18, 18, 22);
-        doc.roundedRect(14, y, 182, 13, 2, 2, 'F');
-        doc.setFontSize(8);
+        doc.roundedRect(14, y, 182, 14, 2, 2, 'F');
+        doc.setFontSize(7.5);
         doc.setTextColor(52, 211, 153);
-        doc.text(`WEEK ${week.week}: ${week.focus}`, 18, y + 4.5);
-        doc.setTextColor(200, 200, 210);
-        doc.text(doc.splitTextToSize((week.actions || []).join(' | '), 170), 18, y + 9.5);
-        y += 15.5;
+        doc.text(`WEEK ${week.week}: ${week.focus}`, 18, y + 5);
+        doc.setTextColor(190, 190, 200);
+        doc.setFontSize(6.5);
+        doc.text(doc.splitTextToSize((week.actions || []).join('  |  '), 170), 18, y + 10);
+        y += 17;
       });
 
-      // Statutory Footer
+      y += 8;
+
+      // Section 5: Curated Recommended Gear Matches (Amazon UK)
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`5. Recommended Wardrobe & Gear Matches (${primary.colorSeason || 'Soft Summer'})`, 14, y);
+      y += 5;
+
+      const items = affiliateCatalog[primary.colorSeason] || affiliateCatalog["Soft Summer"];
+      items.forEach((item) => {
+        doc.setFillColor(18, 18, 22);
+        doc.roundedRect(14, y, 182, 18, 2, 2, 'F');
+        
+        doc.setFontSize(7.5);
+        doc.setTextColor(167, 139, 250);
+        doc.text(item.category.toUpperCase(), 18, y + 5);
+
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(item.title, 65, y + 5);
+
+        doc.setFontSize(7);
+        doc.setTextColor(180, 180, 190);
+        doc.text(doc.splitTextToSize(item.note, 170), 18, y + 11);
+
+        y += 21;
+      });
+
+      y += 4;
+
+      // Live Web Store Access Box
+      doc.setFillColor(24, 24, 27);
+      doc.roundedRect(14, y, 182, 18, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(34, 211, 238);
+      doc.textWithLink('→ Click here to view live Amazon matches on your verified web dossier', 18, y + 8, {
+        url: `https://aurascan-ai-six.vercel.app/?session_id=${scanId}`
+      });
+      doc.setFontSize(6.5);
+      doc.setTextColor(130, 130, 140);
+      doc.text('Statutory Notice: As an Amazon Associate, AuraScan AI earns from qualifying purchases made via online links.', 18, y + 14);
+
+      // Page 2 Footer
       doc.setFontSize(7);
       doc.setTextColor(110, 110, 120);
-      doc.text('Generated by AuraScan AI  *  support@aurascan.ai  *  14-Day Refund Guarantee', 14, 290);
-      doc.text(`Scan Reference: ${primary.scanId || 'scn_sample'}`, 146, 290);
+      doc.text('Page 2 of 2  *  AuraScan AI  *  14-Day Refund Guarantee', 14, 290);
+      doc.text(`Ref: ${scanId}`, 150, 290);
 
-      // Download file directly without popup alert
-      doc.save(`AuraScan-Executive-Dossier-${primary.scanId || 'Report'}.pdf`);
+      // Download
+      doc.save(`AuraScan-Executive-Dossier-${scanId}.pdf`);
     } catch (err) {
-      console.error('PDF error:', err);
+      console.error('PDF generation error:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
