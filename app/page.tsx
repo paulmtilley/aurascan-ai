@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 // Replace with your active Amazon Associates tracking ID
 const AMAZON_TAG = "aurascan-21";
@@ -340,48 +339,144 @@ export default function App() {
   const handleDownloadPdf = () => {
     setIsGeneratingPdf(true);
     try {
-      // Use the browser's hardware-accelerated print-to-PDF driver
-      window.print();
-    } catch (err) {
-      console.error("Print trigger failed:", err);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF({
+      const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
       });
 
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const primary = scanResult || mockFreeResult;
+      const paid = scanResult?.faceAnalysis ? scanResult : mockPaidResult;
 
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Dark theme canvas background
+      doc.setFillColor(9, 9, 11);
+      doc.rect(0, 0, 210, 297, 'F');
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
+      // Confidential Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 150);
+      doc.text('CONFIDENTIAL CLIENT DOSSIER  |  AURASCAN AI', 14, 18);
 
-      pdf.save(`AuraScan-Executive-Dossier-${scanResult?.scanId || 'Report'}.pdf`);
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.text('AuraScan Aesthetic & Colour Audit', 14, 27);
+
+      // Score Badge Top Right
+      doc.setFillColor(24, 24, 27);
+      doc.roundedRect(146, 14, 50, 18, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 170);
+      doc.text('AURA SCORE', 150, 20);
+      doc.setFontSize(14);
+      doc.setTextColor(167, 139, 250);
+      doc.text(`${primary.overallScore || 71} / 100`, 150, 28);
+
+      let y = 38;
+
+      // Overview Banner
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, y, 182, 18, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(167, 139, 250);
+      doc.text(`ARCHETYPE: ${(primary.archetype || 'Urban Sport Minimalist').toUpperCase()}`, 18, y + 6);
+      doc.setTextColor(34, 211, 238);
+      doc.text(`COLOUR SEASON: ${(primary.colorSeason || 'Soft Summer').toUpperCase()}  |  UNDERTONE: ${(primary.colorUndertone || 'Cool-Neutral').toUpperCase()}`, 18, y + 13);
+
+      y += 24;
+
+      // Section 1: Facial Harmony
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('1. Facial Harmony & Illumination Analysis', 14, y);
+      y += 4;
+
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, y, 182, 22, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 150);
+      doc.text('Mandibular & Jawline Definition:', 18, y + 6);
+      doc.setTextColor(220, 220, 230);
+      doc.text(doc.splitTextToSize(paid.faceAnalysis?.jawlineDefinition || mockPaidResult.faceAnalysis.jawlineDefinition, 170), 18, y + 11);
+
+      y += 28;
+
+      // Section 2: Photography & Grooming Specs
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('2. Photography & Grooming Calibration Specs', 14, y);
+      y += 4;
+
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, y, 182, 24, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 150);
+      const specs = paid.groomingAndLightingSpecs || mockPaidResult.groomingAndLightingSpecs;
+      doc.text(`Optimal Focal Length: ${specs.focalLength}`, 18, y + 6);
+      doc.text(`Colour Temperature: ${specs.lightingKelvin}`, 105, y + 6);
+      doc.setTextColor(220, 220, 230);
+      doc.text(doc.splitTextToSize(`Camera Axis: ${specs.cameraAngleRecommendation}`, 170), 18, y + 12);
+      doc.text(doc.splitTextToSize(`Neckline: ${specs.hairAndBeardDemarcation}`, 170), 18, y + 18);
+
+      y += 30;
+
+      // Section 3: Capsule Outfits
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('3. Curated Seasonal Capsule (3 Key Formulas)', 14, y);
+      y += 4;
+
+      const outfits = (paid.capsuleOutfits && paid.capsuleOutfits.length > 0)
+        ? paid.capsuleOutfits
+        : defaultCapsuleOutfits;
+
+      outfits.forEach((outfit: any, idx: number) => {
+        doc.setFillColor(18, 18, 22);
+        doc.roundedRect(14, y, 182, 19, 2, 2, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(167, 139, 250);
+        doc.text(`Look #${idx + 1}: ${outfit.title} (${outfit.setting})`, 18, y + 5);
+        doc.setTextColor(210, 210, 220);
+        const piecesText = (outfit.pieces || []).join('  *  ');
+        doc.text(doc.splitTextToSize(piecesText, 170), 18, y + 11);
+        y += 23;
+      });
+
+      y += 3;
+
+      // Section 4: 30-Day Protocol
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('4. 30-Day Appearance Roadmap', 14, y);
+      y += 4;
+
+      const roadmap = paid.glowUpPlan || mockPaidResult.glowUpPlan;
+      roadmap.forEach((week: any) => {
+        doc.setFillColor(18, 18, 22);
+        doc.roundedRect(14, y, 182, 13, 2, 2, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(52, 211, 153);
+        doc.text(`WEEK ${week.week}: ${week.focus}`, 18, y + 4.5);
+        doc.setTextColor(200, 200, 210);
+        doc.text(doc.splitTextToSize((week.actions || []).join(' | '), 170), 18, y + 9.5);
+        y += 15.5;
+      });
+
+      // Statutory Footer
+      doc.setFontSize(7);
+      doc.setTextColor(110, 110, 120);
+      doc.text('Generated by AuraScan AI  *  support@aurascan.ai  *  14-Day Refund Guarantee', 14, 290);
+      doc.text(`Scan Reference: ${primary.scanId || 'scn_sample'}`, 146, 290);
+
+      // Download file directly without popup alert
+      doc.save(`AuraScan-Executive-Dossier-${primary.scanId || 'Report'}.pdf`);
     } catch (err) {
-      console.error("PDF generation failed:", err);
-      alert("Could not generate PDF directly. Please use your browser Print -> Save as PDF feature.");
+      console.error('PDF error:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  // Safe accessor for capsule outfits
   const displayOutfits = (scanResult?.capsuleOutfits && scanResult.capsuleOutfits.length > 0)
     ? scanResult.capsuleOutfits
     : defaultCapsuleOutfits;
@@ -517,7 +612,7 @@ export default function App() {
               </label>
             </div>
 
-            {/* ICO-Compliant Notice */}
+            {/* ICO-Compliant Privacy Notice */}
             <div className="max-w-2xl w-full bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-4 mb-8 text-[11px] text-zinc-400 space-y-2">
               <div className="flex items-start gap-2">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0 mt-0.5" />
@@ -671,7 +766,7 @@ export default function App() {
             ) : (
               <div className="space-y-6">
                 
-                {/* PDF Generation Action Bar */}
+                {/* PDF Action Bar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
                   <div>
                     <h3 className="font-bold text-sm text-white flex items-center gap-2">
@@ -689,10 +784,10 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Printable Document Container */}
-                <div id="printable-report" className="space-y-8 bg-zinc-950 p-6 sm:p-8 rounded-2xl border border-zinc-900">
+                {/* Visible Report Sections */}
+                <div className="space-y-8 bg-zinc-950 p-6 sm:p-8 rounded-2xl border border-zinc-900">
                   
-                  {/* Dossier Header */}
+                  {/* Header */}
                   <div className="border-b border-zinc-800 pb-4 flex justify-between items-end">
                     <div>
                       <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">Confidential Personal Dossier</span>
@@ -721,7 +816,7 @@ export default function App() {
                     </div>
                   </section>
 
-                  {/* Section 2: Photography & Grooming Technical Specs */}
+                  {/* Section 2: Photography & Grooming Specs */}
                   <section className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5">
                     <div className="flex items-center gap-2 text-violet-400 text-xs font-bold uppercase tracking-wider mb-4 border-b border-zinc-800 pb-2">
                       <Camera size={16} /> Photography & Grooming Calibration Specs
@@ -785,7 +880,7 @@ export default function App() {
                     </div>
                   </section>
 
-                  {/* Section 4: Curated Capsule Outfits (GUARANTEED RENDER) */}
+                  {/* Section 4: Curated Capsule Outfits */}
                   <section className="space-y-4">
                     <div className="flex justify-between items-baseline border-b border-zinc-800 pb-2">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
