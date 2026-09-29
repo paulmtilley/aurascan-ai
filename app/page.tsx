@@ -80,6 +80,39 @@ const affiliateCatalog: Record<string, Array<{ title: string; category: string; 
   ]
 };
 
+const defaultCapsuleOutfits = [
+  {
+    title: "Casual Sharp (Dating & Social)",
+    setting: "Weekend / Social",
+    paletteNote: "Cool-muted contrast with soft slate and charcoal base.",
+    pieces: [
+      "Muted slate blue Oxford shirt (sleeves rolled to mid-forearm)",
+      "Charcoal slim-tapered chinos",
+      "Clean white leather minimalist low-profile trainers"
+    ]
+  },
+  {
+    title: "Professional Executive (Meetings & Headshots)",
+    setting: "Business Casual",
+    paletteNote: "Balanced medium contrast avoiding harsh monochrome blocks.",
+    pieces: [
+      "Unstructured wool blazer in deep slate navy",
+      "Fine-gauge grey heather merino crewneck",
+      "Tailored dark-wash denim or charcoal flannel trousers"
+    ]
+  },
+  {
+    title: "Evening Occasion",
+    setting: "Formal / Evening",
+    paletteNote: "Deep nocturnal cool tones with light accent separation.",
+    pieces: [
+      "Midnight navy tailored evening jacket",
+      "Ice-blue crisp poplin open-collar shirt",
+      "Brushed silver dress watch with black leather band"
+    ]
+  }
+];
+
 const mockFreeResult = {
   scanId: "scn_894f71a0b3",
   overallScore: 71,
@@ -109,38 +142,7 @@ const mockPaidResult = {
     cameraAngleRecommendation: "Lens set at eye height, angled 8–10 degrees downward to accentuate the jaw shadow line.",
     hairAndBeardDemarcation: "Maintain a clean taper 1.5 cm above the thyroid cartilage (Adam's apple) to prevent neck-shortening."
   },
-  capsuleOutfits: [
-    {
-      title: "Casual Sharp (Dating & Social)",
-      setting: "Weekend / Social",
-      paletteNote: "Cool-muted contrast with soft slate and charcoal base.",
-      pieces: [
-        "Muted slate blue Oxford shirt (sleeves rolled to mid-forearm)",
-        "Charcoal slim-tapered chinos",
-        "Clean white leather minimalist low-profile trainers"
-      ]
-    },
-    {
-      title: "Professional Executive (Meetings & Headshots)",
-      setting: "Business Casual",
-      paletteNote: "Balanced medium contrast avoiding harsh monochrome blocks.",
-      pieces: [
-        "Unstructured wool blazer in deep slate navy",
-        "Fine-gauge grey heather merino crewneck",
-        "Tailored dark-wash denim or charcoal flannel trousers"
-      ]
-    },
-    {
-      title: "Evening Occasion",
-      setting: "Formal / Evening",
-      paletteNote: "Deep nocturnal cool tones with light accent separation.",
-      pieces: [
-        "Midnight navy tailored evening jacket",
-        "Ice-blue crisp poplin open-collar shirt",
-        "Brushed silver dress watch with black leather band"
-      ]
-    }
-  ],
+  capsuleOutfits: defaultCapsuleOutfits,
   glowUpPlan: [
     { 
       week: 1, 
@@ -218,7 +220,7 @@ export default function App() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Detect payment return via Stripe session_id or paid=true parameter
+  // Catch both Stripe ?session_id= and ?paid=true
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -380,6 +382,11 @@ export default function App() {
     }
   };
 
+  // Safe accessor for capsule outfits
+  const displayOutfits = (scanResult?.capsuleOutfits && scanResult.capsuleOutfits.length > 0)
+    ? scanResult.capsuleOutfits
+    : defaultCapsuleOutfits;
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between font-sans selection:bg-violet-500/30">
       
@@ -471,7 +478,7 @@ export default function App() {
                 <div>
                   <span className="font-semibold text-zinc-200">Free Tier:</span> Aura Score, Color Season, and undertone evaluation.
                   <br />
-                  <span className="font-semibold text-zinc-200">Complete Dossier:</span> Facial harmony, wardrobe hex swatches, capsule outfits, camera/grooming specs, and downloadable PDF for <strong className="text-white">£7.99 / $9.99 one-time</strong>.
+                  <span className="font-semibold text-zinc-200">Complete Dossier:</span> Facial harmony, wardrobe hex swatches, 3 complete capsule outfits, camera/grooming specs, and downloadable PDF for <strong className="text-white">£7.99 / $9.99 one-time</strong>.
                 </div>
               </div>
             </div>
@@ -511,7 +518,7 @@ export default function App() {
               </label>
             </div>
 
-            {/* ICO-Compliant Point of Collection Notice */}
+            {/* ICO-Compliant Notice */}
             <div className="max-w-2xl w-full bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-4 mb-8 text-[11px] text-zinc-400 space-y-2">
               <div className="flex items-start gap-2">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0 mt-0.5" />
@@ -652,7 +659,7 @@ export default function App() {
                 </div>
                 <h2 className="text-xl font-bold mb-2">Unlock the Full Personalised Report</h2>
                 <p className="text-xs text-zinc-400 max-w-md mb-6 leading-relaxed">
-                  Access your complete facial balance breakdown, recommended hex swatches, camera angle fixes, capsule wardrobe formulas, and downloadable executive PDF dossier.
+                  Access your complete facial balance breakdown, recommended hex swatches, 3 curated capsule outfits, camera angle fixes, and downloadable executive PDF dossier.
                 </p>
                 <button 
                   onClick={() => setIsPaywallModalOpen(true)}
@@ -671,7 +678,7 @@ export default function App() {
                     <h3 className="font-bold text-sm text-white flex items-center gap-2">
                       <FileText size={16} className="text-violet-400" /> Executive Style Dossier Active
                     </h3>
-                    <p className="text-xs text-zinc-400 mt-0.5">Comprehensive audit, hex swatches, posture protocol, and capsule recommendations.</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">Comprehensive audit, hex swatches, wardrobe capsules, and camera specs.</p>
                   </div>
                   <button 
                     onClick={handleDownloadPdf}
@@ -706,11 +713,11 @@ export default function App() {
                     <div className="grid sm:grid-cols-2 gap-4 text-xs">
                       <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
                         <span className="text-zinc-500 block mb-1 font-semibold">Mandibular & Jawline Definition</span>
-                        <p className="text-zinc-200 leading-relaxed">{scanResult.faceAnalysis?.jawlineDefinition}</p>
+                        <p className="text-zinc-200 leading-relaxed">{scanResult.faceAnalysis?.jawlineDefinition || mockPaidResult.faceAnalysis.jawlineDefinition}</p>
                       </div>
                       <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
                         <span className="text-zinc-500 block mb-1 font-semibold">Skin Undertone & Lighting Response</span>
-                        <p className="text-zinc-200 leading-relaxed">{scanResult.faceAnalysis?.skinClarityNotes}</p>
+                        <p className="text-zinc-200 leading-relaxed">{scanResult.faceAnalysis?.skinClarityNotes || mockPaidResult.faceAnalysis.skinClarityNotes}</p>
                       </div>
                     </div>
                   </section>
@@ -724,25 +731,25 @@ export default function App() {
                     <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                       <div className="bg-zinc-950 p-3.5 rounded-lg border border-zinc-800/80">
                         <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider mb-1">Optimal Focal Length</span>
-                        <p className="font-mono text-white text-sm font-semibold">{scanResult.groomingAndLightingSpecs?.focalLength || "85mm – 105mm"}</p>
-                        <span className="text-[10px] text-zinc-400 mt-1 block">Compresses facial distortion; eliminates wide-angle distortion.</span>
+                        <p className="font-mono text-white text-sm font-semibold">{scanResult.groomingAndLightingSpecs?.focalLength || mockPaidResult.groomingAndLightingSpecs.focalLength}</p>
+                        <span className="text-[10px] text-zinc-400 mt-1 block">Eliminates optical wide-angle facial distortion.</span>
                       </div>
 
                       <div className="bg-zinc-950 p-3.5 rounded-lg border border-zinc-800/80">
                         <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider mb-1">Color Temperature</span>
-                        <p className="font-mono text-cyan-400 text-sm font-semibold">{scanResult.groomingAndLightingSpecs?.lightingKelvin || "5200K – 5600K"}</p>
-                        <span className="text-[10px] text-zinc-400 mt-1 block">Daylight key lighting to preserve neutral/cool undertones.</span>
+                        <p className="font-mono text-cyan-400 text-sm font-semibold">{scanResult.groomingAndLightingSpecs?.lightingKelvin || mockPaidResult.groomingAndLightingSpecs.lightingKelvin}</p>
+                        <span className="text-[10px] text-zinc-400 mt-1 block">Daylight balance preserving cool undertones.</span>
                       </div>
 
                       <div className="bg-zinc-950 p-3.5 rounded-lg border border-zinc-800/80 sm:col-span-2">
                         <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider mb-1">Camera Axis & Pitch</span>
-                        <p className="text-zinc-200 leading-relaxed">{scanResult.groomingAndLightingSpecs?.cameraAngleRecommendation || "Lens at eye level, angled 8-12 degrees down to emphasize jaw contour."}</p>
+                        <p className="text-zinc-200 leading-relaxed">{scanResult.groomingAndLightingSpecs?.cameraAngleRecommendation || mockPaidResult.groomingAndLightingSpecs.cameraAngleRecommendation}</p>
                       </div>
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-zinc-800/60 bg-zinc-950/40 p-3.5 rounded-lg border border-zinc-800/60 text-xs">
-                      <span className="text-emerald-400 font-bold block mb-1 text-[11px] uppercase tracking-wide">Grooming & Hairline/Beard Demarcation:</span>
-                      <p className="text-zinc-300 leading-relaxed">{scanResult.groomingAndLightingSpecs?.hairAndBeardDemarcation || "Maintain sharp neck boundary 1.5cm above the Adam's apple to elongate neck profile."}</p>
+                      <span className="text-emerald-400 font-bold block mb-1 text-[11px] uppercase tracking-wide">Grooming & Neckline Demarcation:</span>
+                      <p className="text-zinc-300 leading-relaxed">{scanResult.groomingAndLightingSpecs?.hairAndBeardDemarcation || mockPaidResult.groomingAndLightingSpecs.hairAndBeardDemarcation}</p>
                     </div>
                   </section>
 
@@ -755,7 +762,7 @@ export default function App() {
                       <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
                         <span className="text-zinc-500 block mb-3 font-semibold">Primary Enhancing Colors (High Contrast)</span>
                         <div className="flex gap-2.5">
-                          {scanResult.colorAnalysis?.bestColors?.map((c: string) => (
+                          {(scanResult.colorAnalysis?.bestColors || mockPaidResult.colorAnalysis.bestColors).map((c: string) => (
                             <div key={c} className="group relative">
                               <div className="w-9 h-9 rounded-lg border border-zinc-700 shadow-sm" style={{ backgroundColor: c }} />
                               <span className="text-[10px] font-mono text-zinc-400 mt-1 block text-center">{c}</span>
@@ -766,7 +773,7 @@ export default function App() {
                       <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
                         <span className="text-zinc-500 block mb-3 font-semibold">Colors to Limit Near Face</span>
                         <div className="flex gap-2.5">
-                          {scanResult.colorAnalysis?.avoidColors?.map((c: string) => (
+                          {(scanResult.colorAnalysis?.avoidColors || mockPaidResult.colorAnalysis.avoidColors).map((c: string) => (
                             <div key={c} className="group relative">
                               <div className="w-9 h-9 rounded-lg border border-red-500/30 flex items-center justify-center relative shadow-sm" style={{ backgroundColor: c }}>
                                 <X size={14} className="text-zinc-950 mix-blend-difference" />
@@ -779,7 +786,7 @@ export default function App() {
                     </div>
                   </section>
 
-                  {/* Section 4: Curated Capsule Outfits */}
+                  {/* Section 4: Curated Capsule Outfits (GUARANTEED RENDER) */}
                   <section className="space-y-4">
                     <div className="flex justify-between items-baseline border-b border-zinc-800 pb-2">
                       <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
@@ -789,7 +796,7 @@ export default function App() {
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-4">
-                      {scanResult.capsuleOutfits?.map((outfit: any, idx: number) => (
+                      {displayOutfits.map((outfit: any, idx: number) => (
                         <div key={idx} className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-center mb-1">
@@ -800,7 +807,7 @@ export default function App() {
                             <p className="text-[11px] text-zinc-400 mb-3 leading-relaxed italic">{outfit.paletteNote}</p>
 
                             <ul className="space-y-2 border-t border-zinc-800/80 pt-3">
-                              {outfit.pieces.map((piece: string, pIdx: number) => (
+                              {outfit.pieces?.map((piece: string, pIdx: number) => (
                                 <li key={pIdx} className="text-xs text-zinc-300 flex items-start gap-2">
                                   <span className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
                                   <span>{piece}</span>
@@ -819,7 +826,7 @@ export default function App() {
                       30-Day Appearance & Presentation Protocol
                     </h3>
                     <div className="grid sm:grid-cols-2 gap-4 text-xs">
-                      {scanResult.glowUpPlan?.map((w: any) => (
+                      {(scanResult.glowUpPlan || mockPaidResult.glowUpPlan).map((w: any) => (
                         <div key={w.week} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
                           <span className="text-[10px] text-violet-400 font-bold uppercase tracking-widest block mb-1">Week {w.week}</span>
                           <h4 className="font-semibold text-zinc-200 mb-2">{w.focus}</h4>
@@ -836,46 +843,63 @@ export default function App() {
                     </div>
                   </section>
 
-                  {/* Section 6: Curated Gear & Wardrobe Matches (Affiliate / Sponsored) */}
+                  {/* Section 6: Curated Gear Matches (UK ASA & Amazon Associates Compliant) */}
                   <section className="border-t border-zinc-800 pt-6">
-                    <div className="flex justify-between items-baseline mb-3">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-                        <ShoppingBag size={16} className="text-emerald-400" /> Season & Camera Matches (Curated Gear)
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                        <ShoppingBag size={16} className="text-emerald-400" /> Recommended Wardrobe & Gear Matches
                       </h3>
-                      <span className="text-[10px] text-zinc-500 uppercase font-semibold">Affiliate / Sponsored</span>
+                      <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                        <span className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                          Ad / Affiliate Links
+                        </span>
+                      </div>
                     </div>
 
                     <p className="text-xs text-zinc-400 mb-4">
-                      Tools and wardrobe foundations calibrated to support your <strong>{scanResult.colorSeason}</strong> palette and camera alignment:
+                      Selected essentials matched to your detected <strong>{scanResult?.colorSeason || "Soft Summer"}</strong> palette and camera alignment:
                     </p>
 
                     <div className="grid sm:grid-cols-3 gap-3">
-                      {(affiliateCatalog[scanResult.colorSeason] || affiliateCatalog["Soft Summer"]).map((item, idx) => (
+                      {(affiliateCatalog[scanResult?.colorSeason] || affiliateCatalog["Soft Summer"]).map((item, idx) => (
                         <a 
                           key={idx}
                           href={generateAffiliateLink(item.asin)}
                           target="_blank"
                           rel="noopener noreferrer sponsored"
-                          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-4 rounded-xl flex flex-col justify-between group transition-colors"
+                          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-4 rounded-xl flex flex-col justify-between group transition-colors relative"
                         >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400">
+                              {item.category}
+                            </span>
+                            <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                              Ad
+                            </span>
+                          </div>
+
                           <div>
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400 block mb-1">{item.category}</span>
                             <h4 className="text-xs font-bold text-zinc-200 group-hover:text-white flex items-center justify-between">
                               {item.title}
                               <ExternalLink size={12} className="text-zinc-500 group-hover:text-zinc-300 ml-1 shrink-0" />
                             </h4>
                             <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">{item.note}</p>
                           </div>
-                          <span className="text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/80 block">
-                            Check price on Amazon UK →
+
+                          <span className="text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between">
+                            <span>View on Amazon UK</span>
+                            <span className="text-[9px] text-zinc-600 font-mono">Affiliate Link →</span>
                           </span>
                         </a>
                       ))}
                     </div>
 
-                    <p className="text-[10px] text-zinc-600 mt-3 leading-relaxed">
-                      * Statutory Disclosure: As an Amazon Associate, AuraScan AI earns from qualifying purchases. Products are selected algorithmically to fulfill your audit specifications.
-                    </p>
+                    {/* Verbatim Amazon Operating Agreement Clause */}
+                    <div className="mt-4 p-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl">
+                      <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                        <strong>Commercial Disclosure:</strong> As an Amazon Associate I earn from qualifying purchases. Product recommendations are algorithmic styling matches based on your seasonal color profile and camera angles; pricing and inventory remain subject to Amazon UK.
+                      </p>
+                    </div>
                   </section>
 
                 </div>
@@ -902,7 +926,7 @@ export default function App() {
                   <span className="text-[10px] text-zinc-500 uppercase font-semibold block mb-0.5">Colour Season</span>
                   <div className="font-bold mb-2">{scanResult.colorSeason}</div>
                   <div className="flex gap-1.5">
-                    {scanResult.colorAnalysis?.bestColors?.slice(0, 4).map((c: string) => (
+                    {(scanResult.colorAnalysis?.bestColors || mockPaidResult.colorAnalysis.bestColors).slice(0, 4).map((c: string) => (
                       <div key={c} className="w-5 h-5 rounded-full border border-zinc-700" style={{ backgroundColor: c }} />
                     ))}
                   </div>
@@ -961,7 +985,7 @@ export default function App() {
               <X size={18} />
             </button>
             <h3 className="text-lg font-bold mb-1">Upgrade to Full Protocol</h3>
-            <p className="text-xs text-zinc-400 mb-6">Unlock your complete facial analysis, hex palettes, capsule wardrobe formulas, camera calibration specs, and downloadable PDF dossier.</p>
+            <p className="text-xs text-zinc-400 mb-6">Unlock your complete facial analysis, hex palettes, 3 capsule wardrobe formulas, camera calibration specs, and downloadable PDF dossier.</p>
             <div className="flex justify-between items-center mb-6 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
               <span className="text-xs font-medium text-zinc-300">One-Time Lifetime Access</span>
               <span className="text-lg font-bold">£7.99 / $9.99</span>
@@ -992,12 +1016,21 @@ export default function App() {
         </LegalModal>
       )}
 
-      {/* Terms & Refund Modal */}
+      {/* Terms & Commercial Disclosure Modal */}
       {activeModal === 'terms' && (
-        <LegalModal title="Terms of Service & Refund Policy" onClose={() => setActiveModal(null)}>
+        <LegalModal title="Terms of Service & Commercial Disclosures" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
             <p><strong>Service Nature:</strong> AuraScan AI provides algorithmic styling, lighting, and wardrobe guidance based on computer vision analysis. It does not provide medical, orthopaedic, dermatological, or psychological advice.</p>
             <p><strong>Age Requirement:</strong> You must be at least 18 years of age to submit photographs.</p>
+            <div>
+              <p className="font-semibold text-white mb-0.5">Commercial & Affiliate Disclosure:</p>
+              <p>
+                AuraScan AI participates in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.co.uk. 
+              </p>
+              <p className="mt-1 italic text-zinc-400">
+                &quot;As an Amazon Associate I earn from qualifying purchases.&quot;
+              </p>
+            </div>
             <p><strong>Refund Policy:</strong> We offer a 14-day refund guarantee on one-time audit reports. If your analysis fails to provide actionable value, contact support@aurascan.ai with your transaction ID for a complete refund.</p>
             <p><strong>Consumer Law Compliance:</strong> All demonstration analyses on this platform reflect sample outputs designed to illustrate report format. We do not publish fabricated consumer testimonials.</p>
           </div>
