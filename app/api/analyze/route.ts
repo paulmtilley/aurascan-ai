@@ -79,11 +79,12 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    // Supported current-generation targets
-    const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.1-pro-preview'
-    ];
+    // Replace candidateModels with:
+const candidateModels = [
+  'gemini-3.8-flash',
+  'gemini-3.8-flash-lite',
+  'gemini-2.5-flash-lite'
+];
 
     let lastError: any = null;
     let outputText: string | null = null;

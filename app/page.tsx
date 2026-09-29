@@ -94,16 +94,23 @@ export default function App() {
   const fileInputRefFace = useRef<HTMLInputElement>(null);
   const fileInputRefBody = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('paid') === 'true') {
+    const hasPaidParam = params.get('paid') === 'true';
+    const hasSessionId = params.has('session_id');
+
+    if (hasPaidParam || hasSessionId) {
       setUserProfile({ isPaid: true });
-      setScanResult((prev: any) => ({ ...(prev || mockFreeResult), ...mockPaidResult }));
+      setStep('results');
+      setScanResult((prev: any) => ({
+        ...(prev || mockFreeResult),
+        ...mockPaidResult
+      }));
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
-
+  
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'face' | 'body') => {
     setError(null);
     const file = e.target.files?.[0];
