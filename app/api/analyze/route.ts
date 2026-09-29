@@ -79,51 +79,47 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    // Helper: Execute with retry on 503 high-demand spikes
-    const executeWithRetry = async (modelName: string, attempts = 3, delayMs = 1200) => {
-      for (let i = 0; i < attempts; i++) {
-        try {
-          return await ai.models.generateContent({
-            model: modelName,
-            ...requestPayload
-          });
-        } catch (err: any) {
-          const isDemandSpike = err?.message?.includes('503') || err?.message?.includes('high demand') || err?.status === 503;
-          if (isDemandSpike && i < attempts - 1) {
-            console.warn(`[Gemini 503] Spiked demand on ${modelName}. Retrying in ${delayMs}ms (Attempt ${i + 1}/${attempts})...`);
-            await new Promise((res) => setTimeout(res, delayMs));
-            delayMs *= 1.5;
-          } else {
-            throw err;
-          }
-        }
-      }
-    };
+    // Primary and fallback models to cycle through if Google is under heavy load
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-3.8-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro'
+    ];
 
-    let response;
-    try {
-      response = await executeWithRetry('gemini-3.8-flash');
-    } catch (primaryErr: any) {
-      console.warn('[Gemini Failover] Primary model unavailable, routing to gemini-3-flash fallback...');
+    let lastError: any = null;
+    let outputText: string | null = null;
+
+    for (const modelName of candidateModels) {
       try {
-        response = await executeWithRetry('gemini-3-flash');
-      } catch (fallbackErr) {
-        throw primaryErr;
+        console.log(`[Vision API] Attempting analysis with model: ${modelName}...`);
+        const response = await ai.models.generateContent({
+          model: modelName,
+          ...requestPayload
+        });
+
+        if (response?.text) {
+          outputText = response.text;
+          console.log(`[Vision API] Success using ${modelName}`);
+          break; // Stop loop once we get a valid output
+        }
+      } catch (err: any) {
+        lastError = err;
+        const isSpike = err?.message?.includes('503') || err?.message?.includes('high demand') || err?.status === 503;
+        console.warn(`[Vision API Warning] Model ${modelName} failed (${isSpike ? '503 Spike' : err?.message}). Trying next candidate...`);
+        // Brief pause before switching to next model
+        await new Promise((res) => setTimeout(res, 500));
       }
     }
 
-    const outputText = response?.text;
     if (!outputText) {
-      return NextResponse.json(
-        { error: 'Vision model completed without output text.' }, 
-        { status: 422 }
-      );
+      throw lastError || new Error('All vision model endpoints are experiencing temporary peak load.');
     }
 
     return NextResponse.json(JSON.parse(outputText));
 
   } catch (error: any) {
-    console.error('[Gemini Route Error]:', error);
+    console.error('[Gemini Pipeline Error]:', error);
     return NextResponse.json(
       { error: error.message || 'Vision analysis temporarily unavailable due to upstream demand.' }, 
       { status: 503 }
