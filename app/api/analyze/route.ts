@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     if (!face || !body) {
       return NextResponse.json(
-        { error: 'Both face and body photographs are required.' }, 
+        { error: 'Both a front-facing portrait and a standing photo are required.' }, 
         { status: 400 }
       );
     }
@@ -43,18 +43,28 @@ Preferred Style: ${stylePref || 'Relaxed, minimal patterns'}
 Current Budget: ${budget || '£0 (Use what I own)'}
 `;
 
-    const prompt = `Act as an expert, pragmatic personal stylist and portrait photography consultant. 
-Analyze the two supplied images (first is portrait, second is full body).
+    const prompt = `Act as an expert, pragmatic personal stylist and portrait photography consultant.
+You are evaluating two uploaded images:
+Image 1: Front-facing portrait
+Image 2: Full-body standing photograph
+
 Client Context:
 ${clientContext}
 
-Provide a practical, actionable styling and photography guide adhering strictly to this methodology:
-1. Do NOT assign any numerical beauty, appearance, or attractiveness scores. Focus strictly on lighting, angles, clothing contrast, and silhouette coordination.
-2. Ground all advice in what the user already owns first (e.g., standard dark jeans, plain tops, casual overshirts).
-3. Connect each major recommendation directly to visible cues in the images (e.g., uneven lighting, low camera angles, lack of separation between shirt and skin).
-4. Outline realistic confidence limitations (e.g., acknowledge lighting consistency or camera processing variations).
+CRITICAL INITIAL VALIDATION:
+Examine both images carefully before performing styling analysis.
+1. Check whether Image 1 contains a clear, identifiable human face/portrait.
+2. Check whether Image 2 contains an identifiable human body or standing silhouette.
+3. If either image is a blank square, solid color block, abstract screenshot, meme, placeholder, or does not clearly depict a real human subject, you MUST set "isValidPhoto": false and provide a specific, polite explanation in "rejectionReason" (e.g. "We could not detect a person in your portrait image. Please upload a clear photo of yourself taken in daylight."). Leave all other fields empty or minimal.
+4. If both images are valid photographs of a person, set "isValidPhoto": true, set "rejectionReason": null, and provide the complete practical guide adhering strictly to the schema.
 
-Return ONLY valid JSON adhering strictly to the schema.`;
+STYLING METHODOLOGY:
+- Do NOT assign any numerical beauty, appearance, or attractiveness scores.
+- Ground advice in what the user already owns first.
+- Connect every recommendation directly to visible lighting, angles, or clothing contrast in the supplied photos.
+- Outline realistic confidence limitations.
+
+Return ONLY valid JSON matching the schema.`;
 
     const requestPayload = {
       contents: [
@@ -77,8 +87,10 @@ Return ONLY valid JSON adhering strictly to the schema.`;
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            customerName: { type: Type.STRING },
-            suggestedDirection: { type: Type.STRING },
+            isValidPhoto: { type: Type.BOOLEAN },
+            rejectionReason: { type: Type.STRING, nullable: true },
+            customerName: { type: Type.STRING, nullable: true },
+            suggestedDirection: { type: Type.STRING, nullable: true },
             quickStartChanges: {
               type: Type.ARRAY,
               items: {
@@ -164,18 +176,7 @@ Return ONLY valid JSON adhering strictly to the schema.`;
               }
             }
           },
-          required: [
-            'suggestedDirection',
-            'quickStartChanges',
-            'photoObservations',
-            'confidenceNotes',
-            'palette',
-            'outfits',
-            'photoChecklist',
-            'finishingDetails',
-            'shoppingPlan',
-            'actionPlan'
-          ]
+          required: ['isValidPhoto']
         }
       }
     };
@@ -218,7 +219,19 @@ Return ONLY valid JSON adhering strictly to the schema.`;
       throw lastError || new Error('Unable to complete styling analysis at this time.');
     }
 
-    return NextResponse.json(JSON.parse(outputText));
+    const parsedResult = JSON.parse(outputText);
+
+    // If the image fails human presence validation, return a clean 422 error
+    if (parsedResult.isValidPhoto === false) {
+      return NextResponse.json(
+        { 
+          error: parsedResult.rejectionReason || 'We could not detect a person in one or both of the uploaded photos. Please upload clear photographs taken in natural daylight.' 
+        }, 
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json(parsedResult);
 
   } catch (error: any) {
     console.error('[AuraScan Engine Error]:', error);
