@@ -5,7 +5,7 @@ import {
   Lock, Droplets, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, X, Download, AlertCircle, RefreshCcw,
   ShieldCheck, Info, FileText, ShoppingBag, ExternalLink, Camera,
-  HelpCircle, Eye, Check, ChevronRight
+  Check
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -155,8 +155,8 @@ export default function App() {
 
   // User input states
   const [step, setStep] = useState<string>('upload');
-  const [userPriorities, setUserPriorities] = useState<string>("Dating profiles & casual outfits");
-  const [userStylePref, setUserStylePref] = useState<string>("Relaxed, minimal patterns");
+  const [userPriorities, setUserPriorities] = useState<string>("Dating profile photos");
+  const [userStylePref, setUserStylePref] = useState<string>("Relaxed & minimal patterns");
   const [userBudget, setUserBudget] = useState<string>("£0 (Use what I own)");
 
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -574,7 +574,7 @@ export default function App() {
                 {faceImage ? (
                   <img src={faceImage} alt="Portrait preview" className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-40 mix-blend-luminosity" />
                 ) : (
-                  <ScanFace size={40} className="text-zinc-600 mb-3" />
+                  <Camera size={40} className="text-zinc-600 mb-3" />
                 )}
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-sm">{faceImage ? 'Portrait Attached' : 'Front-Facing Portrait'}</p>
@@ -624,15 +624,17 @@ export default function App() {
               Generate Style & Photo Guide <Sparkles size={16} />
             </button>
 
-            {/* Tangible Interactive Sample Report Preview */}
+            {/* Interactive Sample Report Showcase (Example: Alex) */}
             <div className="w-full max-w-2xl mb-12 border border-zinc-800 bg-zinc-900/40 rounded-2xl p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
                 <div>
                   <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block mb-0.5">
-                    Demonstration Preview
+                    Sample Report Preview
                   </span>
-                  <h2 className="text-lg font-bold text-zinc-100">See An Example Report (Customer: Alex)</h2>
-                  <p className="text-xs text-zinc-400 mt-0.5">Practical suggestions based on relaxed clothing and dating profile goals.</p>
+                  <h2 className="text-lg font-bold text-zinc-100">Your Personal Style & Photo Guide</h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Example customer: <strong>Alex</strong> · Priority: Dating photos & relaxed casual wardrobe
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -646,46 +648,98 @@ export default function App() {
               </div>
 
               <div className="space-y-4">
-                
-                {/* 1. Quick-Start Sample */}
+                {/* 1. Quick-Start Direction */}
                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-bold text-violet-400 block mb-1">1. Quick-Start Recommendation</span>
-                  <p className="text-xs font-semibold text-zinc-200 mb-2">Direction: deeper colours, simple layers and softer front-facing light.</p>
+                  <span className="text-xs font-bold text-violet-400 block mb-1">1. Quick-Start Recommendations</span>
+                  <p className="text-xs font-semibold text-zinc-200 mb-2">
+                    Suggested direction: deeper colours, simple layers and softer front-facing light.
+                  </p>
                   <ul className="text-xs text-zinc-400 space-y-1.5 list-disc pl-4">
-                    <li><strong className="text-zinc-300">Try navy or deep teal near your face:</strong> Prevents pale tops blending into skin tone.</li>
-                    <li><strong className="text-zinc-300">Use an open overshirt:</strong> Gives plain t-shirts shape without requiring formal tailoring.</li>
-                    <li><strong className="text-zinc-300">Face a window at eye level:</strong> Removes harsh overhead shadows.</li>
+                    <li>
+                      <strong className="text-zinc-300">Try navy or deep teal near your face:</strong> The pale beige top blends into skin tone; deeper shades create clean separation.
+                    </li>
+                    <li>
+                      <strong className="text-zinc-300">Use an open overshirt:</strong> Adds shape and structure to casual t-shirts without formal tailoring.
+                    </li>
+                    <li>
+                      <strong className="text-zinc-300">Face a window at eye level:</strong> Eliminates overhead shadows and low-angle camera distortion.
+                    </li>
                   </ul>
+                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 text-[11px] text-zinc-400">
+                    <strong className="text-emerald-400">Start with what you own:</strong> A navy top, dark jeans, and clean trainers are enough to try this immediately.
+                  </div>
                 </div>
 
-                {/* 2. Swatches Sample */}
+                {/* 2. Photo Observations Table */}
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                  <span className="text-xs font-bold text-cyan-400 block mb-2">2. What Your Photos Tell Us</span>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[11px]">
+                      <thead className="text-zinc-500 border-b border-zinc-800">
+                        <tr>
+                          <th className="pb-1.5">Observation</th>
+                          <th className="pb-1.5">Why it matters</th>
+                          <th className="pb-1.5">What to try</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-zinc-300 divide-y divide-zinc-900">
+                        <tr>
+                          <td className="py-1.5 pr-2">One side of face warmly lit</td>
+                          <td className="py-1.5 pr-2 text-zinc-400">Distorts colour undertones</td>
+                          <td className="py-1.5 text-cyan-300">Retake facing indirect daylight</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1.5 pr-2">Pale top blends with skin</td>
+                          <td className="py-1.5 pr-2 text-zinc-400">Reduces portrait separation</td>
+                          <td className="py-1.5 text-cyan-300">Test navy vs beige top</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1.5 pr-2">Camera below chest height</td>
+                          <td className="py-1.5 pr-2 text-zinc-400">Distorts proportions</td>
+                          <td className="py-1.5 text-cyan-300">Raise phone to eye level</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 3. Starter Palette Swatches */}
                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
                   <div className="flex justify-between items-baseline mb-2">
-                    <span className="text-xs font-bold text-cyan-400">2. Starter Colour Palette</span>
+                    <span className="text-xs font-bold text-emerald-400">3. Starter Colour Palette</span>
                     <span className="text-[11px] text-zinc-400 font-medium">Cool-to-neutral, medium-to-deep</span>
                   </div>
-                  <div className="grid grid-cols-5 gap-2 mt-2">
-                    {alexSampleReport.palette.map((p) => (
-                      <div key={p.hex} className="flex flex-col items-center">
-                        <div className="w-full h-8 rounded-md border border-zinc-700" style={{ backgroundColor: p.hex }} />
-                        <span className="text-[10px] text-zinc-300 font-medium mt-1 truncate w-full text-center">{p.name}</span>
-                        <span className="text-[9px] font-mono text-zinc-500">{p.hex}</span>
+                  <div className="grid grid-cols-5 gap-2 mt-1">
+                    {[
+                      { name: "Deep Navy", hex: "#203047" },
+                      { name: "Charcoal", hex: "#41454D" },
+                      { name: "Soft White", hex: "#F0EEE9" },
+                      { name: "Deep Teal", hex: "#176B70" },
+                      { name: "Burgundy", hex: "#743F50" }
+                    ].map((c) => (
+                      <div key={c.hex} className="flex flex-col items-center">
+                        <div className="w-full h-8 rounded-md border border-zinc-700" style={{ backgroundColor: c.hex }} />
+                        <span className="text-[10px] text-zinc-300 font-medium mt-1 truncate w-full text-center">{c.name}</span>
+                        <span className="text-[9px] font-mono text-zinc-500">{c.hex}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 3. Capsule Sample */}
+                {/* 4. Outfit Capsule Example */}
                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-bold text-emerald-400 block mb-1">3. Outfit Built Around What You Own</span>
-                  <h4 className="text-xs font-bold text-white mb-1">Coffee Date: Deep teal T-shirt + dark jeans + navy overshirt</h4>
-                  <p className="text-xs text-zinc-400">Coordinated without looking formal. Checks shoulder comfort and uses easy repeats.</p>
+                  <span className="text-xs font-bold text-amber-400 block mb-1">4. Sample Capsule Outfit</span>
+                  <h4 className="text-xs font-bold text-white mb-1">
+                    Relaxed Coffee Date: Deep teal T-shirt + dark straight-leg jeans + navy overshirt + clean trainers
+                  </h4>
+                  <p className="text-[11px] text-zinc-400">
+                    Casual, easy to repeat, and coordinated without looking formal. Checks shoulder mobility and uses items already in your wardrobe.
+                  </p>
                 </div>
-
               </div>
 
               <p className="text-[10px] text-zinc-500 mt-4 text-center">
-                *Fictional demonstration. A real report bases its observations on your photographs and stated preferences.
+                *Fictional demonstration. Your actual report will evaluate your uploaded photos and stated preferences directly.
               </p>
             </div>
 
@@ -1202,7 +1256,7 @@ function SEOComparisonView({ title, competitor, description, onBack }: { title: 
   return (
     <div className="py-4">
       <button onClick={onBack} className="text-xs text-violet-400 hover:underline mb-4 block">
-        ← Back to Audit
+        ← Back to Guide
       </button>
       <h1 className="text-2xl font-bold mb-2">{title}</h1>
       <p className="text-xs text-zinc-400 mb-6">{description}</p>
