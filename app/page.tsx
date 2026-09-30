@@ -170,6 +170,18 @@ export default function App() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isSampleExpanded, setIsSampleExpanded] = useState(true);
 
+  // Keyboard accessibility: Dismiss open modals on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (activeModal) setActiveModal(null);
+        if (isPaywallModalOpen && !isProcessingPayment) setIsPaywallModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeModal, isPaywallModalOpen, isProcessingPayment]);
+
   // Catch both Stripe ?session_id= and ?paid=true
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -315,11 +327,9 @@ export default function App() {
 
       const rep = alexSampleReport;
 
-      // Dark background
       doc.setFillColor(9, 9, 11);
       doc.rect(0, 0, 210, 297, 'F');
 
-      // Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(140, 140, 150);
@@ -335,7 +345,6 @@ export default function App() {
       doc.setTextColor(180, 180, 190);
       doc.text(`Priorities: ${rep.priorities}`, 14, 40);
 
-      // Section 1
       let y = 50;
       doc.setFontSize(11);
       doc.setTextColor(255, 255, 255);
@@ -355,7 +364,6 @@ export default function App() {
 
       y += 44;
 
-      // Section 2
       doc.setFontSize(11);
       doc.setTextColor(255, 255, 255);
       doc.text('2. Image Observations & Confidence', 14, y);
@@ -371,7 +379,6 @@ export default function App() {
 
       y += 38;
 
-      // Section 3: Palette
       doc.setFontSize(11);
       doc.setTextColor(255, 255, 255);
       doc.text('3. Starter Colour Palette (Test Before Buying)', 14, y);
@@ -389,7 +396,6 @@ export default function App() {
 
       y += 34;
 
-      // Section 4: Outfits
       doc.setFontSize(11);
       doc.setTextColor(255, 255, 255);
       doc.text('4. Three Outfits Built Around the Same Pieces', 14, y);
@@ -409,7 +415,6 @@ export default function App() {
         y += 28;
       });
 
-      // Page Footer
       doc.setFontSize(7);
       doc.setTextColor(110, 110, 120);
       doc.text('Sample Demonstration Document  *  AuraScan AI  *  aurascan-ai-six.vercel.app', 14, 290);
@@ -432,25 +437,37 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div 
             onClick={() => { setCurrentRoute('scan'); setStep('upload'); }}
-            className="font-bold text-lg tracking-tight flex items-center gap-2 cursor-pointer"
+            className="font-bold text-lg tracking-tight flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 rounded-lg p-1"
+            tabIndex={0}
+            role="button"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setCurrentRoute('scan'); setStep('upload'); } }}
           >
             <Sparkles className="text-violet-500" size={22} /> AuraScan AI
           </div>
           
           <nav className="flex items-center gap-6 text-xs font-medium text-zinc-400">
-            <button onClick={() => setActiveModal('how-it-works')} className="hover:text-white transition-colors">
+            <button 
+              onClick={() => setActiveModal('how-it-works')} 
+              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+            >
               How It Works
             </button>
-            <button onClick={() => setCurrentRoute('vs-face')} className="hover:text-white transition-colors hidden sm:block">
+            <button 
+              onClick={() => setCurrentRoute('vs-face')} 
+              className="hover:text-white transition-colors hidden sm:block focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+            >
               vs Face Raters
             </button>
-            <button onClick={() => setCurrentRoute('vs-color')} className="hover:text-white transition-colors hidden sm:block">
+            <button 
+              onClick={() => setCurrentRoute('vs-color')} 
+              className="hover:text-white transition-colors hidden sm:block focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+            >
               vs Color Palettes
             </button>
             {step === 'results' && !userProfile.isPaid && (
               <button 
                 onClick={() => setIsPaywallModalOpen(true)} 
-                className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-semibold transition-colors"
+                className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
                 Unlock Full Guide (£7.99)
               </button>
@@ -463,7 +480,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-6 py-10 w-full flex-1">
         
         {error && (
-          <div className="mb-8 bg-red-950/40 border border-red-900/50 text-red-200 px-5 py-3 rounded-xl flex items-center gap-3 text-sm">
+          <div className="mb-8 bg-red-950/40 border border-red-900/50 text-red-200 px-5 py-3 rounded-xl flex items-center gap-3 text-sm" role="alert">
             <AlertCircle size={18} className="text-red-400 shrink-0" />
             <p>{error}</p>
           </div>
@@ -526,11 +543,12 @@ export default function App() {
               </span>
               <div className="grid sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-zinc-400 block mb-1">Your Priority</label>
+                  <label htmlFor="pref-priorities" className="text-zinc-400 block mb-1">Your Priority</label>
                   <select 
+                    id="pref-priorities"
                     value={userPriorities} 
                     onChange={(e) => setUserPriorities(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
                     <option>Dating profile photos</option>
                     <option>Professional headshots</option>
@@ -539,11 +557,12 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-zinc-400 block mb-1">Your Preferred Style</label>
+                  <label htmlFor="pref-style" className="text-zinc-400 block mb-1">Your Preferred Style</label>
                   <select 
+                    id="pref-style"
                     value={userStylePref} 
                     onChange={(e) => setUserStylePref(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
                     <option>Relaxed & minimal patterns</option>
                     <option>Smart casual & layered</option>
@@ -551,11 +570,12 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-zinc-400 block mb-1">Current Budget</label>
+                  <label htmlFor="pref-budget" className="text-zinc-400 block mb-1">Current Budget</label>
                   <select 
+                    id="pref-budget"
                     value={userBudget} 
                     onChange={(e) => setUserBudget(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
                     <option>£0 (Use what I own)</option>
                     <option>Minimal (Under £50)</option>
@@ -565,7 +585,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Clear Tier Transparency */}
+            {/* Tier Transparency */}
             <div className="w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/80 rounded-2xl p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
               <div className="flex items-center gap-3">
                 <Info size={18} className="text-violet-400 shrink-0" />
@@ -577,11 +597,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* Upload Surfaces */}
+            {/* Accessible Upload Surfaces with Focus States */}
             <div className="grid md:grid-cols-2 gap-5 w-full max-w-2xl mb-6">
               <label 
                 htmlFor="face-upload"
-                className={`relative h-60 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${faceImage ? 'border-violet-500 bg-violet-500/5' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30'}`}
+                className={`relative h-60 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-violet-500 ${faceImage ? 'border-violet-500 bg-violet-500/5' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30'}`}
               >
                 {faceImage ? (
                   <img src={faceImage} alt="Portrait preview" className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-40 mix-blend-luminosity" />
@@ -591,13 +611,24 @@ export default function App() {
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-sm">{faceImage ? 'Portrait Attached' : 'Front-Facing Portrait'}</p>
                   <p className="text-xs text-zinc-500 mt-1">Natural daylight, neutral expression, eye-level</p>
+                  <span className="inline-block mt-2 px-2.5 py-1 rounded bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-medium">
+                    {faceImage ? 'Change file' : 'Select file'}
+                  </span>
                 </div>
-                <input id="face-upload" type="file" className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageUpload(e, 'face')} />
+                {/* Accessible visually-hidden input (keeps keyboard focusability intact) */}
+                <input 
+                  id="face-upload" 
+                  type="file" 
+                  className="sr-only" 
+                  accept="image/jpeg, image/png" 
+                  aria-label="Upload Front-Facing Portrait"
+                  onChange={(e) => handleImageUpload(e, 'face')} 
+                />
               </label>
 
               <label 
                 htmlFor="body-upload"
-                className={`relative h-60 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${bodyImage ? 'border-cyan-500 bg-cyan-500/5' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30'}`}
+                className={`relative h-60 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 ${bodyImage ? 'border-cyan-500 bg-cyan-500/5' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30'}`}
               >
                 {bodyImage ? (
                   <img src={bodyImage} alt="Body preview" className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-40 mix-blend-luminosity" />
@@ -607,8 +638,19 @@ export default function App() {
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-sm">{bodyImage ? 'Full Body Attached' : 'Full-Body Standing Photo'}</p>
                   <p className="text-xs text-zinc-500 mt-1">Natural standing silhouette, head to knees</p>
+                  <span className="inline-block mt-2 px-2.5 py-1 rounded bg-zinc-800/80 border border-zinc-700/60 text-[10px] text-zinc-300 font-medium">
+                    {bodyImage ? 'Change file' : 'Select file'}
+                  </span>
                 </div>
-                <input id="body-upload" type="file" className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageUpload(e, 'body')} />
+                {/* Accessible visually-hidden input (keeps keyboard focusability intact) */}
+                <input 
+                  id="body-upload" 
+                  type="file" 
+                  className="sr-only" 
+                  accept="image/jpeg, image/png" 
+                  aria-label="Upload Full-Body Standing Photo"
+                  onChange={(e) => handleImageUpload(e, 'body')} 
+                />
               </label>
             </div>
 
@@ -625,12 +667,12 @@ export default function App() {
             <button 
               onClick={executeScan}
               disabled={!faceImage || !bodyImage}
-              className="px-8 py-3.5 bg-zinc-100 text-zinc-950 text-sm font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white transition-all shadow-lg shadow-white/5 flex items-center gap-2 mb-16"
+              className="px-8 py-3.5 bg-zinc-100 text-zinc-950 text-sm font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white transition-all shadow-lg shadow-white/5 flex items-center gap-2 mb-16 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
             >
               Generate Style & Photo Guide <Sparkles size={16} />
             </button>
 
-            {/* FULL 8-PART REPORT AS FRONT PAGE SAMPLE */}
+            {/* Full 8-Part Report Front Page Sample */}
             <div className="w-full max-w-3xl mb-12 border border-zinc-800 bg-zinc-950 rounded-2xl p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
                 <div>
@@ -647,7 +689,7 @@ export default function App() {
                     type="button"
                     onClick={handleDownloadSamplePdf}
                     disabled={isGeneratingPdf}
-                    className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
+                    className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   >
                     <Download size={13} />
                     {isGeneratingPdf ? "Creating..." : "Download Sample PDF"}
@@ -655,7 +697,8 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setIsSampleExpanded(!isSampleExpanded)}
-                    className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-lg flex items-center gap-1 transition-colors"
+                    className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-lg flex items-center gap-1 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    aria-expanded={isSampleExpanded}
                   >
                     {isSampleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     {isSampleExpanded ? "Collapse" : "Expand"}
@@ -673,7 +716,7 @@ export default function App() {
 
         {/* Step 2: Processing View */}
         {currentRoute === 'scan' && step === 'loading' && (
-          <div className="min-h-[50vh] flex flex-col items-center justify-center text-center">
+          <div className="min-h-[50vh] flex flex-col items-center justify-center text-center" aria-live="polite">
             <div className="relative w-20 h-20 mb-6">
               <div className="absolute inset-0 border-2 border-zinc-800 rounded-full" />
               <div className="absolute inset-0 border-2 border-violet-500 rounded-full border-t-transparent animate-spin" />
@@ -692,7 +735,7 @@ export default function App() {
             <div className="flex justify-between items-center">
               <button 
                 onClick={() => { setStep('upload'); setFaceImage(null); setBodyImage(null); }}
-                className="text-xs text-zinc-400 hover:text-white flex items-center gap-1.5 bg-zinc-900 px-3 py-1.5 rounded-full"
+                className="text-xs text-zinc-400 hover:text-white flex items-center gap-1.5 bg-zinc-900 px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-violet-500"
               >
                 <RefreshCcw size={13} /> New Guide
               </button>
@@ -728,7 +771,7 @@ export default function App() {
                 </p>
                 <button 
                   onClick={() => setIsPaywallModalOpen(true)}
-                  className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-bold text-xs transition-all shadow-md shadow-violet-900/30"
+                  className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-bold text-xs transition-all shadow-md shadow-violet-900/30 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 >
                   Unlock Full Report – £7.99 one-time
                 </button>
@@ -748,14 +791,14 @@ export default function App() {
                   <button 
                     onClick={handleDownloadPdf}
                     disabled={isGeneratingPdf}
-                    className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 shrink-0"
+                    className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 shrink-0 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
                     {isGeneratingPdf ? <Activity size={14} className="animate-spin" /> : <Download size={14} />}
                     {isGeneratingPdf ? "Generating PDF..." : "Download Full PDF Report"}
                   </button>
                 </div>
 
-                {/* Printable Document Container (Matches Full Report Format) */}
+                {/* Printable Document Container */}
                 <div id="printable-report" className="space-y-8 bg-zinc-950 p-6 sm:p-8 rounded-2xl border border-zinc-900">
                   <ReportContent report={activeReport} />
                 </div>
@@ -807,7 +850,7 @@ export default function App() {
 
               <button 
                 onClick={handleExportCard}
-                className="mt-4 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-full inline-flex items-center gap-2"
+                className="mt-4 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-full inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-violet-500"
               >
                 <Download size={14} /> Download Style Card (PNG)
               </button>
@@ -823,32 +866,38 @@ export default function App() {
             <span className="font-semibold text-zinc-400">AuraScan AI</span> · Operated by PT Digital Consulting (UK)
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setActiveModal('privacy')} className="hover:text-zinc-300 transition-colors">
+            <button onClick={() => setActiveModal('privacy')} className="hover:text-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1">
               Privacy Policy
             </button>
             <span>·</span>
-            <button onClick={() => setActiveModal('terms')} className="hover:text-zinc-300 transition-colors">
+            <button onClick={() => setActiveModal('terms')} className="hover:text-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1">
               Terms & Refunds
             </button>
             <span>·</span>
-            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-300 transition-colors">
+            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1">
               Contact
             </a>
           </div>
         </div>
       </footer>
 
-      {/* Stripe Modal */}
+      {/* Stripe Modal with Accessibility Attributes & Escape Handling */}
       {isPaywallModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="paywall-title"
+        >
           <div className="bg-zinc-900 w-full max-w-sm rounded-2xl border border-zinc-800 p-6 shadow-2xl relative">
             <button 
               onClick={() => !isProcessingPayment && setIsPaywallModalOpen(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white"
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white p-1 rounded focus:outline-none focus:ring-2 focus:ring-violet-500"
+              aria-label="Close upgrade dialog"
             >
               <X size={18} />
             </button>
-            <h3 className="text-lg font-bold mb-1">Unlock Your Personal Style Guide</h3>
+            <h3 id="paywall-title" className="text-lg font-bold mb-1">Unlock Your Personal Style Guide</h3>
             <p className="text-xs text-zinc-400 mb-6">Unlock all 3 curated outfit formulas, lighting & camera diagnostics, starter colour swatches, and downloadable PDF.</p>
             <div className="flex justify-between items-center mb-6 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
               <span className="text-xs font-medium text-zinc-300">One-Time Access</span>
@@ -857,7 +906,7 @@ export default function App() {
             <button 
               onClick={handleCheckout} 
               disabled={isProcessingPayment}
-              className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs transition-colors flex justify-center items-center gap-2"
+              className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs transition-colors flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
             >
               {isProcessingPayment ? <Activity size={16} className="animate-spin" /> : "Proceed to Secure Checkout"}
             </button>
@@ -866,7 +915,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Legal Modals */}
+      {/* Accessible Modals */}
       {activeModal === 'privacy' && (
         <LegalModal title="Privacy Policy" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
@@ -900,7 +949,7 @@ export default function App() {
   );
 }
 
-// Reusable Report Component used identically in both front-page preview and paid dossier
+// Reusable Report Component
 function ReportContent({ report }: { report: any }) {
   return (
     <div className="space-y-8">
@@ -1109,7 +1158,7 @@ function ReportContent({ report }: { report: any }) {
         </div>
       </section>
 
-      {/* Curated Recommendations (Amazon UK Compliant) */}
+      {/* Curated Recommendations */}
       <section className="border-t border-zinc-800 pt-6">
         <div className="flex justify-between items-baseline mb-2">
           <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
@@ -1126,7 +1175,7 @@ function ReportContent({ report }: { report: any }) {
               href={generateAffiliateLink(item.asin)}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-3.5 rounded-xl flex flex-col justify-between group transition-colors"
+              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-3.5 rounded-xl flex flex-col justify-between group transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <div>
                 <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400 block mb-1">{item.category}</span>
@@ -1152,12 +1201,21 @@ function ReportContent({ report }: { report: any }) {
 
 function LegalModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto shadow-2xl">
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 text-zinc-500 hover:text-white p-1 rounded focus:outline-none focus:ring-2 focus:ring-violet-500"
+          aria-label="Close dialog"
+        >
           <X size={18} />
         </button>
-        <h3 className="text-base font-bold text-white mb-4 border-b border-zinc-800 pb-2">{title}</h3>
+        <h3 id="modal-title" className="text-base font-bold text-white mb-4 border-b border-zinc-800 pb-2">{title}</h3>
         {children}
       </div>
     </div>
@@ -1167,7 +1225,10 @@ function LegalModal({ title, children, onClose }: { title: string; children: Rea
 function SEOComparisonView({ title, competitor, description, onBack }: { title: string; competitor: string; description: string; onBack: () => void }) {
   return (
     <div className="py-4">
-      <button onClick={onBack} className="text-xs text-violet-400 hover:underline mb-4 block">
+      <button 
+        onClick={onBack} 
+        className="text-xs text-violet-400 hover:underline mb-4 block focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+      >
         ← Back to Guide
       </button>
       <h1 className="text-2xl font-bold mb-2">{title}</h1>
