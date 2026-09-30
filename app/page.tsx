@@ -469,28 +469,58 @@ export default function App() {
           </div>
         )}
 
+        {/* Comparison Views */}
+        {currentRoute === 'vs-face' && (
+          <SEOComparisonView 
+            title="AuraScan AI vs Appearance & Face Raters"
+            competitor="Face Rating Sites"
+            description="Assigning an arbitrary beauty score provides zero practical help. AuraScan delivers actionable lighting, clothing colour, and outfit guidance to improve how you look in photos."
+            onBack={() => setCurrentRoute('scan')}
+          />
+        )}
+
+        {currentRoute === 'vs-color' && (
+          <SEOComparisonView 
+            title="AuraScan AI vs Standalone Colour Analyzers"
+            competitor="Generic Swatch Apps"
+            description="Knowing a seasonal label is unhelpful if you don't know how to pair pieces together with what you already own or if poor lighting distorts your photos."
+            onBack={() => setCurrentRoute('scan')}
+          />
+        )}
+
         {/* Step 1: Upload View */}
         {currentRoute === 'scan' && step === 'upload' && (
           <div className="flex flex-col items-center">
             
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-medium mb-6 text-zinc-400">
               <Activity size={14} className="text-emerald-400" />
-              Practical Styling & Camera Calibration
+              AI-Assisted Personal Style & Photography Guidance
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-center mb-4 leading-tight">
-              Personal Style & <br />
+              Practical Styling & <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
-                Photo Presentation Guide
+                Photo Advice You Can Test
               </span>
             </h1>
 
-            <p className="text-zinc-400 text-center max-w-xl text-sm sm:text-base mb-8">
-              A practical starting point for colours, outfits, and repeatable photo setups. We focus on testable styling changes using clothes you already own—no unexplained appearance scores.
+            <p className="text-zinc-300 text-center max-w-xl text-sm sm:text-base mb-8">
+              Get actionable suggestions for colors, outfits, and lighting based on your photos. No arbitrary beauty scores—just practical changes using clothes you already own.
             </p>
 
+            {/* Honest Methodology & Limitations Banner */}
+            <div className="w-full max-w-2xl bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 mb-6 text-xs text-zinc-400 space-y-1.5">
+              <div className="flex items-center gap-2 text-zinc-200 font-semibold">
+                <Info size={15} className="text-violet-400 shrink-0" />
+                How this assessment works & what it measures:
+              </div>
+              <p className="leading-relaxed">
+                Our AI identifies visible lighting angles, fabric contrast against your skin tone, and camera framing perspective. It does not measure attractiveness or facial symmetry flaws. Recommendations are starting points to test in front of a mirror or window, not rigid rules.
+              </p>
+            </div>
+
             {/* Quick Context & Preferences Selector */}
-            <div className="w-full max-w-2xl bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 mb-8 text-xs">
+            <div className="w-full max-w-2xl bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 mb-6 text-xs">
               <span className="font-bold text-zinc-200 block mb-3 uppercase tracking-wider text-[11px] text-violet-400">
                 Tailor Your Guide (Takes 10 Seconds)
               </span>
