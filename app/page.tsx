@@ -130,7 +130,7 @@ const compressImage = (file: File): Promise<string> => {
     reader.onload = (event) => {
       const img = new Image();
       const result = event.target?.result;
-      if (typeof result !== 'string') return reject(new Error('Invalid image'));
+      if (typeof result !== 'string') return reject(new Error('Invalid image file format.'));
       img.src = result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -139,13 +139,13 @@ const compressImage = (file: File): Promise<string> => {
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scale;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas failure'));
+        if (!ctx) return reject(new Error('Canvas rendering failed.'));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
-      img.onerror = reject;
+      img.onerror = () => reject(new Error('Unable to read the image data.'));
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('File reader error.'));
   });
 };
 
@@ -163,6 +163,7 @@ export default function App() {
   const [bodyImage, setBodyImage] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<{ isPaid: boolean }>({ isPaid: false });
+  const [isDemoView, setIsDemoView] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPaywallModalOpen, setIsPaywallModalOpen] = useState(false);
@@ -182,7 +183,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeModal, isPaywallModalOpen, isProcessingPayment]);
 
-  // Catch both Stripe ?session_id= and ?paid=true
+  // Handle URL query parameters with clear demonstration labelling
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -191,11 +192,9 @@ export default function App() {
 
     if (hasPaidParam || hasSessionId) {
       setUserProfile({ isPaid: true });
+      setIsDemoView(true);
       setStep('results');
-      setScanResult((prev: any) => ({
-        ...(prev || alexSampleReport),
-        isPaid: true
-      }));
+      setScanResult(alexSampleReport);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -214,8 +213,8 @@ export default function App() {
       const compressed = await compressImage(file);
       if (type === 'face') setFaceImage(compressed);
       if (type === 'body') setBodyImage(compressed);
-    } catch {
-      setError("Image compression failed. Please try a different photo.");
+    } catch (err: any) {
+      setError(err?.message || "Image compression failed. Please try a different photo.");
     }
   };
 
@@ -225,9 +224,9 @@ export default function App() {
     setError(null);
 
     const states = [
+      "Inspecting photo clarity and verifying image contents...",
       "Reviewing lighting balance and portrait contrast...",
       "Analysing wardrobe tones and framing perspectives...",
-      "Evaluating current pieces against your stated priorities...",
       "Drafting practical styling and photograph guide..."
     ];
 
@@ -251,17 +250,19 @@ export default function App() {
         })
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error("Analysis failed. Displaying demonstration framework.");
+        throw new Error(data.error || "Unable to analyze the uploaded images. Please ensure your photos are well-lit and clearly depict a person.");
       }
 
-      const data = await res.json();
+      setIsDemoView(false);
       setScanResult(data);
       setStep('results');
     } catch (err: any) {
-      console.warn("Using sample guide:", err.message);
-      setScanResult(alexSampleReport);
-      setStep('results');
+      // DO NOT silently fall back to Alex demo report. Show the actual failure reason!
+      setError(err.message || "Failed to analyze photos. Please upload genuine, well-lit photographs taken in natural daylight.");
+      setStep('upload');
     } finally {
       clearInterval(interval);
     }
@@ -283,6 +284,7 @@ export default function App() {
       }
     } catch {
       setTimeout(() => {
+        setIsDemoView(true);
         setScanResult(alexSampleReport);
         setUserProfile({ isPaid: true });
         setIsPaywallModalOpen(false);
@@ -293,15 +295,19 @@ export default function App() {
 
   const handleExportCard = async () => {
     const node = document.getElementById('share-card');
-    if (!node) return;
+    if (!node) {
+      setError("Unable to find the style card element to download.");
+      return;
+    }
     try {
       const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement('a');
       link.download = `AuraScan-Quick-Style-Card.png`;
       link.href = dataUrl;
       link.click();
-    } catch {
-      alert("Failed to export card. Please take a manual screenshot.");
+    } catch (err) {
+      console.error("Export card failed:", err);
+      setError("Failed to export style card image. Please take a manual screenshot.");
     }
   };
 
@@ -311,6 +317,7 @@ export default function App() {
       window.print();
     } catch (err) {
       console.error("Print trigger failed:", err);
+      setError("Browser print dialog could not be opened.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -333,7 +340,7 @@ export default function App() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(140, 140, 150);
-      doc.text('AURASCAN AI  |  PRACTICAL PERSONAL STYLE GUIDE', 14, 18);
+      doc.text('AURASCAN AI  |  PRACTICAL PERSONAL STYLE GUIDE (DEMO)', 14, 18);
 
       doc.setFontSize(18);
       doc.setTextColor(255, 255, 255);
@@ -422,6 +429,7 @@ export default function App() {
       doc.save('AuraScan-Sample-Style-Guide.pdf');
     } catch (err) {
       console.error('Sample PDF export failed:', err);
+      setError("Failed to create sample PDF download.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -480,9 +488,14 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-6 py-10 w-full flex-1">
         
         {error && (
-          <div className="mb-8 bg-red-950/40 border border-red-900/50 text-red-200 px-5 py-3 rounded-xl flex items-center gap-3 text-sm" role="alert">
-            <AlertCircle size={18} className="text-red-400 shrink-0" />
-            <p>{error}</p>
+          <div className="mb-8 bg-red-950/40 border border-red-900/50 text-red-200 px-5 py-3 rounded-xl flex items-center justify-between gap-3 text-sm" role="alert">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={18} className="text-red-400 shrink-0" />
+              <p>{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-white p-1 rounded" aria-label="Dismiss error">
+              <X size={16} />
+            </button>
           </div>
         )}
 
@@ -652,7 +665,7 @@ export default function App() {
               </label>
             </div>
 
-            {/* Streamlined Point-of-Collection Privacy Summary (Viewport Safe) */}
+            {/* Streamlined Point-of-Collection Privacy Summary */}
             <div className="max-w-2xl w-full bg-zinc-900/40 border border-zinc-800/80 rounded-xl px-4 py-3 mb-6 text-xs text-zinc-300 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
@@ -712,7 +725,7 @@ export default function App() {
               </div>
 
               {isSampleExpanded && (
-                <ReportContent report={alexSampleReport} />
+                <ReportContent report={alexSampleReport} isSample={true} />
               )}
             </div>
 
@@ -737,6 +750,25 @@ export default function App() {
         {/* Step 3: Results View (The Practical Guide) */}
         {currentRoute === 'scan' && step === 'results' && (
           <div className="space-y-8">
+            
+            {/* Demonstration Warning Banner when testing via ?paid=true or ?session_id= */}
+            {isDemoView && (
+              <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-4 text-xs text-amber-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Info size={16} className="text-amber-400 shrink-0" />
+                  <span>
+                    <strong>Interactive Product Demonstration:</strong> You are viewing the unlocked sample style guide for demonstration client Alex.
+                  </span>
+                </div>
+                <button 
+                  onClick={() => { setStep('upload'); setScanResult(null); setIsDemoView(false); }}
+                  className="px-2.5 py-1 bg-amber-900/60 hover:bg-amber-800 text-amber-100 rounded text-[11px] font-semibold transition-colors"
+                >
+                  Analyze My Photos
+                </button>
+              </div>
+            )}
+
             <div className="flex justify-between items-center">
               <button 
                 onClick={() => { setStep('upload'); setFaceImage(null); setBodyImage(null); }}
@@ -744,7 +776,9 @@ export default function App() {
               >
                 <RefreshCcw size={13} /> New Guide
               </button>
-              <span className="text-xs text-zinc-500">Client Reference: {activeReport.customerName || "Alex"}</span>
+              <span className="text-xs text-zinc-500">
+                {isDemoView ? "Sample Client: Alex (Demo)" : "Personal Guide"}
+              </span>
             </div>
 
             {/* Free Starting Summary */}
@@ -805,7 +839,7 @@ export default function App() {
 
                 {/* Printable Document Container */}
                 <div id="printable-report" className="space-y-8 bg-zinc-950 p-6 sm:p-8 rounded-2xl border border-zinc-900">
-                  <ReportContent report={activeReport} />
+                  <ReportContent report={activeReport} isSample={isDemoView} />
                 </div>
               </div>
             )}
@@ -983,17 +1017,17 @@ export default function App() {
 }
 
 // Reusable Report Component
-function ReportContent({ report }: { report: any }) {
+function ReportContent({ report, isSample = false }: { report: any; isSample?: boolean }) {
   return (
     <div className="space-y-8">
       {/* Header Info */}
       <div className="border-b border-zinc-800 pb-4">
         <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">
-          AuraScan AI · Personal Style & Photo Guide
+          AuraScan AI · Personal Style & Photo Guide {isSample && "(Demonstration Profile)"}
         </span>
-        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
+        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
           A practical starting point for colours, outfits and photographs
-        </h2>
+        </h1>
         <div className="grid sm:grid-cols-2 gap-2 text-xs text-zinc-400">
           <p><strong className="text-zinc-300">Your priorities:</strong> {report.priorities}</p>
           <p><strong className="text-zinc-300">Your preferences:</strong> {report.preferences}</p>
@@ -1002,14 +1036,14 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 1. Quick-Start Recommendations */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           1. Your quick-start recommendations
-        </h3>
+        </h2>
         <p className="text-xs font-semibold text-zinc-200">
           Suggested direction: {report.suggestedDirection}
         </p>
         <div className="grid sm:grid-cols-3 gap-3 text-xs">
-          {report.quickStartChanges.map((change: any, idx: number) => (
+          {report.quickStartChanges?.map((change: any, idx: number) => (
             <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
               <span className="font-bold text-white block mb-1.5">{idx + 1}. {change.title}</span>
               <p className="text-zinc-400 leading-relaxed">{change.desc}</p>
@@ -1023,9 +1057,9 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 2. What your photographs can tell us */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           2. What your photographs can tell us
-        </h3>
+        </h2>
         <div className="border border-zinc-800 rounded-xl overflow-hidden">
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
@@ -1036,7 +1070,7 @@ function ReportContent({ report }: { report: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800 text-zinc-300">
-              {report.photoObservations.map((obs: any, idx: number) => (
+              {report.photoObservations?.map((obs: any, idx: number) => (
                 <tr key={idx} className="hover:bg-zinc-900/40">
                   <td className="p-3 text-zinc-200">{obs.observation}</td>
                   <td className="p-3 text-zinc-400">{obs.why}</td>
@@ -1048,7 +1082,7 @@ function ReportContent({ report }: { report: any }) {
         </div>
         <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 text-xs space-y-1">
           <span className="font-bold text-zinc-200 block mb-1">Assessment confidence:</span>
-          {report.confidenceNotes.map((note: string, idx: number) => (
+          {report.confidenceNotes?.map((note: string, idx: number) => (
             <p key={idx} className="text-zinc-400">• {note}</p>
           ))}
           <p className="text-[11px] text-zinc-500 pt-2 italic">
@@ -1059,14 +1093,14 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 3. Starter colour palette */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           3. Your starter colour palette
-        </h3>
+        </h2>
         <p className="text-xs text-zinc-400">
           Working direction: cool-to-neutral, medium-to-deep colours. Treat this as a palette to test, rather than a rigid rule.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {report.palette.map((p: any) => (
+          {report.palette?.map((p: any) => (
             <div key={p.hex} className="bg-zinc-900/70 p-3 rounded-xl border border-zinc-800 flex flex-col justify-between">
               <div>
                 <div className="w-full h-12 rounded-lg border border-zinc-700 mb-2" style={{ backgroundColor: p.hex }} />
@@ -1085,14 +1119,14 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 4. Three outfits built around the same pieces */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           4. Three outfits built around the same pieces
-        </h3>
+        </h2>
         <div className="grid md:grid-cols-3 gap-4 text-xs">
-          {report.outfits.map((outfit: any, idx: number) => (
+          {report.outfits?.map((outfit: any, idx: number) => (
             <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 flex flex-col justify-between">
               <div>
-                <h4 className="font-bold text-white text-sm mb-2">{outfit.title}</h4>
+                <h3 className="font-bold text-white text-sm mb-2">{outfit.title}</h3>
                 <p className="font-semibold text-violet-300 mb-2 leading-relaxed">{outfit.pieces}</p>
                 <p className="text-zinc-400 leading-relaxed mb-3"><strong>Why it fits:</strong> {outfit.why}</p>
               </div>
@@ -1107,13 +1141,13 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 5. Repeatable Photo Setup */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           5. Your next profile photograph: a repeatable setup
-        </h3>
+        </h2>
         <div className="bg-zinc-900/60 p-5 rounded-xl border border-zinc-800 text-xs space-y-2">
           <span className="font-bold text-zinc-200 block mb-1">Recreate this setup at home:</span>
           <ul className="grid sm:grid-cols-2 gap-2 text-zinc-300">
-            {report.photoChecklist.map((step: string, idx: number) => (
+            {report.photoChecklist?.map((step: string, idx: number) => (
               <li key={idx} className="flex items-start gap-2">
                 <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
                 <span>{step}</span>
@@ -1125,14 +1159,14 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 6. Finishing Details & Limitations */}
       <section className="space-y-3 text-xs">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           6. Finishing details worth checking
-        </h3>
+        </h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
             <span className="font-bold text-zinc-200 block mb-2">High-value quick adjustments:</span>
             <ul className="space-y-1.5 text-zinc-300 list-disc pl-4">
-              {report.finishingDetails.map((d: string, idx: number) => (
+              {report.finishingDetails?.map((d: string, idx: number) => (
                 <li key={idx}>{d}</li>
               ))}
             </ul>
@@ -1148,9 +1182,9 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 7. Shopping Plan */}
       <section className="space-y-3 text-xs">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           7. Your shopping plan
-        </h3>
+        </h2>
         <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-semibold">
           Rule: Buy nothing until you have tried the outfits with existing clothes.
         </div>
@@ -1164,7 +1198,7 @@ function ReportContent({ report }: { report: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800 text-zinc-300">
-              {report.shoppingPlan.map((s: any) => (
+              {report.shoppingPlan?.map((s: any) => (
                 <tr key={s.priority}>
                   <td className="p-3 font-bold text-violet-400">#{s.priority}</td>
                   <td className="p-3 text-white font-medium">{s.item}</td>
@@ -1178,11 +1212,11 @@ function ReportContent({ report }: { report: any }) {
 
       {/* 8. Seven-Day Action Plan */}
       <section className="space-y-3 text-xs">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
           8. Your seven-day action plan
-        </h3>
+        </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {report.actionPlan.map((p: any) => (
+          {report.actionPlan?.map((p: any) => (
             <div key={p.day} className="bg-zinc-900/60 p-3 rounded-lg border border-zinc-800">
               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1">{p.day}</span>
               <p className="text-zinc-300 leading-snug">{p.task}</p>
@@ -1194,9 +1228,9 @@ function ReportContent({ report }: { report: any }) {
       {/* Curated Recommendations */}
       <section className="border-t border-zinc-800 pt-6">
         <div className="flex justify-between items-baseline mb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
             <ShoppingBag size={14} className="text-emerald-400" /> Reference Wardrobe & Gear Matches
-          </h4>
+          </h2>
           <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
             Ad / Affiliate
           </span>
@@ -1212,10 +1246,10 @@ function ReportContent({ report }: { report: any }) {
             >
               <div>
                 <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400 block mb-1">{item.category}</span>
-                <h5 className="text-xs font-bold text-zinc-200 group-hover:text-white flex items-center justify-between">
+                <h3 className="text-xs font-bold text-zinc-200 group-hover:text-white flex items-center justify-between">
                   {item.title}
                   <ExternalLink size={11} className="text-zinc-500 group-hover:text-zinc-300 ml-1 shrink-0" />
-                </h5>
+                </h3>
                 <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">{item.note}</p>
               </div>
               <span className="text-[10px] text-zinc-500 mt-2.5 pt-1.5 border-t border-zinc-800/80 block">
