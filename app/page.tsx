@@ -586,7 +586,7 @@ export default function App() {
             </div>
 
             {/* Tier Transparency */}
-            <div className="w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/80 rounded-2xl p-4 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+            <div className="w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/80 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
               <div className="flex items-center gap-3">
                 <Info size={18} className="text-violet-400 shrink-0" />
                 <div>
@@ -615,7 +615,6 @@ export default function App() {
                     {faceImage ? 'Change file' : 'Select file'}
                   </span>
                 </div>
-                {/* Accessible visually-hidden input (keeps keyboard focusability intact) */}
                 <input 
                   id="face-upload" 
                   type="file" 
@@ -642,7 +641,6 @@ export default function App() {
                     {bodyImage ? 'Change file' : 'Select file'}
                   </span>
                 </div>
-                {/* Accessible visually-hidden input (keeps keyboard focusability intact) */}
                 <input 
                   id="body-upload" 
                   type="file" 
@@ -654,14 +652,21 @@ export default function App() {
               </label>
             </div>
 
-            {/* ICO Privacy Notice */}
-            <div className="max-w-2xl w-full bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-4 mb-8 text-[11px] text-zinc-400 space-y-2">
-              <div className="flex items-start gap-2">
-                <ShieldCheck size={16} className="text-emerald-400 shrink-0 mt-0.5" />
-                <p>
-                  <strong className="text-zinc-300">Data Protection & Privacy Notice:</strong> Uploaded photographs are transmitted over encrypted TLS to our vision engine strictly to calculate your audit metrics. Images are held ephemerally in RAM, are <strong>permanently deleted within 60 minutes</strong>, and are never used to train machine learning models. 18+ only.
+            {/* Streamlined Point-of-Collection Privacy Summary (Viewport Safe) */}
+            <div className="max-w-2xl w-full bg-zinc-900/40 border border-zinc-800/80 rounded-xl px-4 py-3 mb-6 text-xs text-zinc-300 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
+                <p className="leading-snug">
+                  <strong>Private & Ephemeral:</strong> Photos are analyzed in volatile runtime memory (RAM) and never stored or used to train AI models. 18+ only.
                 </p>
               </div>
+              <button 
+                type="button"
+                onClick={() => setActiveModal('privacy')}
+                className="text-violet-400 hover:underline shrink-0 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-violet-400 rounded px-1"
+              >
+                Details
+              </button>
             </div>
 
             <button 
@@ -725,7 +730,7 @@ export default function App() {
               </div>
             </div>
             <h2 className="text-lg font-semibold mb-1 text-zinc-200">{loadingText || "Processing images..."}</h2>
-            <p className="text-xs text-zinc-500">Analysing styling and lighting cues (images cleared within 60 minutes)</p>
+            <p className="text-xs text-zinc-500">Analysing styling and lighting cues (ephemeral RAM processing)</p>
           </div>
         )}
 
@@ -915,13 +920,40 @@ export default function App() {
         </div>
       )}
 
-      {/* Accessible Modals */}
+      {/* Substantiated, Legally Accurate Privacy Policy Modal */}
       {activeModal === 'privacy' && (
-        <LegalModal title="Privacy Policy" onClose={() => setActiveModal(null)}>
-          <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>Data Controller:</strong> PT Digital Consulting, Bristol, UK. Contact: privacy@aurascan.ai</p>
-            <p><strong>Personal Data Collected:</strong> Front-facing portrait and full-body photographs uploaded for styling analysis.</p>
-            <p><strong>Retention Period:</strong> Uploaded photographs are <strong>automatically purged within 60 minutes</strong> of analysis completion.</p>
+        <LegalModal title="Data Protection & Privacy Policy" onClose={() => setActiveModal(null)}>
+          <div className="space-y-3.5 text-xs text-zinc-300 leading-relaxed">
+            <p>
+              <strong className="text-white">Data Controller:</strong> PT Digital Consulting, Bristol, UK. 
+              Contact for data inquiries: <a href="mailto:privacy@aurascan.ai" className="text-violet-400 hover:underline">privacy@aurascan.ai</a>.
+            </p>
+            
+            <div>
+              <strong className="text-white block mb-0.5">What Data We Process:</strong>
+              <p>The portrait and full-body images you submit, along with your selected style and wardrobe priorities.</p>
+            </div>
+
+            <div>
+              <strong className="text-white block mb-0.5">Technical Processing Lifecycle & Ephemeral Retention:</strong>
+              <ul className="list-disc pl-4 space-y-1 text-zinc-400">
+                <li><strong className="text-zinc-300">Client-Side Compression:</strong> Images are downsampled in your browser prior to transmission to conserve bandwidth.</li>
+                <li><strong className="text-zinc-300">Encrypted Transit:</strong> Transmitted via HTTPS/TLS 1.3 to our stateless serverless functions.</li>
+                <li><strong className="text-zinc-300">Volatile Runtime Memory (RAM) Only:</strong> Photographs are held in volatile RAM only for the duration of the analysis call. No image files are written to disk, persistent storage buckets (e.g. S3), or databases.</li>
+                <li><strong className="text-zinc-300">No Model Training:</strong> Analysis is executed via Google Cloud enterprise API endpoints under strict terms confirming customer API inputs are not used to train foundation models.</li>
+                <li><strong className="text-zinc-300">Immediate Purge:</strong> Image memory buffers are garbage-collected and purged from memory immediately upon completion of the API response.</li>
+              </ul>
+            </div>
+
+            <div>
+              <strong className="text-white block mb-0.5">Lawful Basis (UK GDPR):</strong>
+              <p>Processing is conducted strictly to fulfill your requested style audit (Contractual Necessity) and explicit consent at submission.</p>
+            </div>
+
+            <div>
+              <strong className="text-white block mb-0.5">Your Statutory Rights:</strong>
+              <p>Under the UK Data Protection Act 2018 and UK GDPR, you have the right to request access, rectification, or confirmation of erasure. Because we do not store persistent image archives or biometric templates, no personal imagery exists after your session concludes.</p>
+            </div>
           </div>
         </LegalModal>
       )}
@@ -938,9 +970,10 @@ export default function App() {
       {activeModal === 'how-it-works' && (
         <LegalModal title="How AuraScan AI Works" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>1. Dual Photo Input & Priorities:</strong> You select your current style priority and upload photos taken in natural daylight.</p>
-            <p><strong>2. Computer Vision Assessment:</strong> Our models measure visual contrast ratios, lighting consistency, and camera framing angles.</p>
-            <p><strong>3. Practical Actionable Guide:</strong> You receive an instant starter colour palette, 3 outfits based on what you own, and a repeatable camera setup.</p>
+            <p><strong>1. Priorities & Photos:</strong> You select your current style goal and upload two photos taken in natural daylight.</p>
+            <p><strong>2. Visual Diagnostics:</strong> Our system checks lighting balance, color separation against your skin, and camera perspective.</p>
+            <p><strong>3. Practical Advice:</strong> You receive starter color swatches, 3 outfits based on clothes you likely own, and a repeatable camera setup.</p>
+            <p><strong>4. Ephemeral Security:</strong> Your images are processed in volatile memory and purged immediately upon response completion. No persistent image databases are maintained.</p>
           </div>
         </LegalModal>
       )}
