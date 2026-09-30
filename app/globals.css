@@ -1,32 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+  }
+
+  body {
+    background-color: #09090b;
+    color: #f4f4f5;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-/* Print-to-PDF Formatting for AuraScan Dossier */
 @media print {
-  /* Hide navigation, buttons, modals, and mobile story card */
   header,
   nav,
   footer,
@@ -36,7 +22,6 @@ body {
     display: none !important;
   }
 
-  /* Force background colors and dark theme contrast to print accurately */
   body, 
   html {
     background-color: #09090b !important;
@@ -59,50 +44,11 @@ body {
     display: block !important;
   }
 
-  /* Prevent cards from breaking awkwardly across page splits */
   section,
   .grid > div {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     margin-bottom: 1.25rem !important;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 12mm 15mm;
-  }
-}
-
-  /* Force background colors and dark theme contrast to print accurately */
-  body, 
-  html {
-    background-color: #09090b !important;
-    color: #f4f4f5 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  main {
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* Ensure the printable report container expands cleanly across A4 pages */
-  #printable-report {
-    border: none !important;
-    padding: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    display: block !important;
-  }
-
-  /* Prevent awkward page cuts in cards and grid sections */
-  section,
-  .grid > div {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    margin-bottom: 1rem !important;
   }
 
   @page {
