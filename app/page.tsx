@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Lock, Droplets, Activity, CheckCircle2, 
-  Sparkles, Image as ImageIcon, X, Download, AlertCircle, RefreshCcw,
+  Lock, Activity, CheckCircle2, 
+  Sparkles, Image as ImageIcon, Download, AlertCircle, RefreshCcw,
   ShieldCheck, Info, FileText, ShoppingBag, ExternalLink, Camera,
-  Check
+  Check, ChevronDown, ChevronUp, X
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -40,7 +40,7 @@ const affiliateCatalog: Record<string, Array<{ title: string; category: string; 
   ]
 };
 
-// Default demonstration data modeled directly on the approved guide
+// Full demonstration report data
 const alexSampleReport = {
   customerName: "Alex",
   priorities: "Better dating-profile photographs and a more coordinated casual wardrobe.",
@@ -168,6 +168,7 @@ export default function App() {
   const [isPaywallModalOpen, setIsPaywallModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isSampleExpanded, setIsSampleExpanded] = useState(true);
 
   // Catch both Stripe ?session_id= and ?paid=true
   useEffect(() => {
@@ -468,25 +469,6 @@ export default function App() {
           </div>
         )}
 
-        {/* SEO Comparison Pages */}
-        {currentRoute === 'vs-face' && (
-          <SEOComparisonView 
-            title="AuraScan AI vs Appearance & Face Raters"
-            competitor="Face Rating Sites"
-            description="Assigning an arbitrary beauty score provides zero practical help. AuraScan delivers actionable lighting, clothing colour, and outfit guidance to improve how you look in photos."
-            onBack={() => setCurrentRoute('scan')}
-          />
-        )}
-
-        {currentRoute === 'vs-color' && (
-          <SEOComparisonView 
-            title="AuraScan AI vs Standalone Colour Analyzers"
-            competitor="Generic Swatch Apps"
-            description="Knowing a seasonal label is unhelpful if you don't know how to pair pieces together with what you already own or if poor lighting distorts your photos."
-            onBack={() => setCurrentRoute('scan')}
-          />
-        )}
-
         {/* Step 1: Upload View */}
         {currentRoute === 'scan' && step === 'upload' && (
           <div className="flex flex-col items-center">
@@ -600,18 +582,12 @@ export default function App() {
               </label>
             </div>
 
-            {/* ICO-Compliant Privacy Notice */}
+            {/* ICO Privacy Notice */}
             <div className="max-w-2xl w-full bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-4 mb-8 text-[11px] text-zinc-400 space-y-2">
               <div className="flex items-start gap-2">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0 mt-0.5" />
                 <p>
                   <strong className="text-zinc-300">Data Protection & Privacy Notice:</strong> Uploaded photographs are transmitted over encrypted TLS to our vision engine strictly to calculate your audit metrics. Images are held ephemerally in RAM, are <strong>permanently deleted within 60 minutes</strong>, and are never used to train machine learning models. 18+ only.
-                </p>
-              </div>
-              <div className="flex items-start gap-2 text-zinc-500">
-                <Info size={16} className="shrink-0 mt-0.5" />
-                <p>
-                  <strong className="text-zinc-400">Styling Guidance Notice:</strong> Results are styling and photographic suggestions based on lighting, angle, and contrast. AuraScan provides styling suggestions and does not offer medical, orthopaedic, or dermatological advice.
                 </p>
               </div>
             </div>
@@ -624,123 +600,42 @@ export default function App() {
               Generate Style & Photo Guide <Sparkles size={16} />
             </button>
 
-            {/* Interactive Sample Report Showcase (Example: Alex) */}
-            <div className="w-full max-w-2xl mb-12 border border-zinc-800 bg-zinc-900/40 rounded-2xl p-6">
+            {/* FULL 8-PART REPORT AS FRONT PAGE SAMPLE */}
+            <div className="w-full max-w-3xl mb-12 border border-zinc-800 bg-zinc-950 rounded-2xl p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
                 <div>
-                  <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block mb-0.5">
-                    Sample Report Preview
-                  </span>
-                  <h2 className="text-lg font-bold text-zinc-100">Your Personal Style & Photo Guide</h2>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-violet-950/60 border border-violet-800/60 text-[10px] font-semibold text-violet-300 uppercase tracking-widest mb-1.5">
+                    Live Sample Report Showcase
+                  </div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Your Personal Style & Photo Guide</h2>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Example customer: <strong>Alex</strong> · Priority: Dating photos & relaxed casual wardrobe
+                    Demonstration Client: <strong>Alex</strong> · Goal: Dating photographs & casual wardrobe
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadSamplePdf}
-                  disabled={isGeneratingPdf}
-                  className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
-                >
-                  <Download size={13} />
-                  {isGeneratingPdf ? "Creating Sample..." : "Download Sample PDF"}
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* 1. Quick-Start Direction */}
-                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-bold text-violet-400 block mb-1">1. Quick-Start Recommendations</span>
-                  <p className="text-xs font-semibold text-zinc-200 mb-2">
-                    Suggested direction: deeper colours, simple layers and softer front-facing light.
-                  </p>
-                  <ul className="text-xs text-zinc-400 space-y-1.5 list-disc pl-4">
-                    <li>
-                      <strong className="text-zinc-300">Try navy or deep teal near your face:</strong> The pale beige top blends into skin tone; deeper shades create clean separation.
-                    </li>
-                    <li>
-                      <strong className="text-zinc-300">Use an open overshirt:</strong> Adds shape and structure to casual t-shirts without formal tailoring.
-                    </li>
-                    <li>
-                      <strong className="text-zinc-300">Face a window at eye level:</strong> Eliminates overhead shadows and low-angle camera distortion.
-                    </li>
-                  </ul>
-                  <div className="mt-3 pt-2.5 border-t border-zinc-800/80 text-[11px] text-zinc-400">
-                    <strong className="text-emerald-400">Start with what you own:</strong> A navy top, dark jeans, and clean trainers are enough to try this immediately.
-                  </div>
-                </div>
-
-                {/* 2. Photo Observations Table */}
-                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-bold text-cyan-400 block mb-2">2. What Your Photos Tell Us</span>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[11px]">
-                      <thead className="text-zinc-500 border-b border-zinc-800">
-                        <tr>
-                          <th className="pb-1.5">Observation</th>
-                          <th className="pb-1.5">Why it matters</th>
-                          <th className="pb-1.5">What to try</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-zinc-300 divide-y divide-zinc-900">
-                        <tr>
-                          <td className="py-1.5 pr-2">One side of face warmly lit</td>
-                          <td className="py-1.5 pr-2 text-zinc-400">Distorts colour undertones</td>
-                          <td className="py-1.5 text-cyan-300">Retake facing indirect daylight</td>
-                        </tr>
-                        <tr>
-                          <td className="py-1.5 pr-2">Pale top blends with skin</td>
-                          <td className="py-1.5 pr-2 text-zinc-400">Reduces portrait separation</td>
-                          <td className="py-1.5 text-cyan-300">Test navy vs beige top</td>
-                        </tr>
-                        <tr>
-                          <td className="py-1.5 pr-2">Camera below chest height</td>
-                          <td className="py-1.5 pr-2 text-zinc-400">Distorts proportions</td>
-                          <td className="py-1.5 text-cyan-300">Raise phone to eye level</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* 3. Starter Palette Swatches */}
-                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <div className="flex justify-between items-baseline mb-2">
-                    <span className="text-xs font-bold text-emerald-400">3. Starter Colour Palette</span>
-                    <span className="text-[11px] text-zinc-400 font-medium">Cool-to-neutral, medium-to-deep</span>
-                  </div>
-                  <div className="grid grid-cols-5 gap-2 mt-1">
-                    {[
-                      { name: "Deep Navy", hex: "#203047" },
-                      { name: "Charcoal", hex: "#41454D" },
-                      { name: "Soft White", hex: "#F0EEE9" },
-                      { name: "Deep Teal", hex: "#176B70" },
-                      { name: "Burgundy", hex: "#743F50" }
-                    ].map((c) => (
-                      <div key={c.hex} className="flex flex-col items-center">
-                        <div className="w-full h-8 rounded-md border border-zinc-700" style={{ backgroundColor: c.hex }} />
-                        <span className="text-[10px] text-zinc-300 font-medium mt-1 truncate w-full text-center">{c.name}</span>
-                        <span className="text-[9px] font-mono text-zinc-500">{c.hex}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Outfit Capsule Example */}
-                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-bold text-amber-400 block mb-1">4. Sample Capsule Outfit</span>
-                  <h4 className="text-xs font-bold text-white mb-1">
-                    Relaxed Coffee Date: Deep teal T-shirt + dark straight-leg jeans + navy overshirt + clean trainers
-                  </h4>
-                  <p className="text-[11px] text-zinc-400">
-                    Casual, easy to repeat, and coordinated without looking formal. Checks shoulder mobility and uses items already in your wardrobe.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadSamplePdf}
+                    disabled={isGeneratingPdf}
+                    className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
+                  >
+                    <Download size={13} />
+                    {isGeneratingPdf ? "Creating..." : "Download Sample PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSampleExpanded(!isSampleExpanded)}
+                    className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-lg flex items-center gap-1 transition-colors"
+                  >
+                    {isSampleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    {isSampleExpanded ? "Collapse" : "Expand"}
+                  </button>
                 </div>
               </div>
 
-              <p className="text-[10px] text-zinc-500 mt-4 text-center">
-                *Fictional demonstration. Your actual report will evaluate your uploaded photos and stated preferences directly.
-              </p>
+              {isSampleExpanded && (
+                <ReportContent report={alexSampleReport} />
+              )}
             </div>
 
           </div>
@@ -774,13 +669,13 @@ export default function App() {
               <span className="text-xs text-zinc-500">Client Reference: {activeReport.customerName || "Alex"}</span>
             </div>
 
-            {/* Free Assessment Summary */}
+            {/* Free Starting Summary */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
               <span className="text-xs font-bold text-violet-400 uppercase tracking-widest block mb-1">
                 Your Starting Direction
               </span>
               <h2 className="text-xl font-extrabold text-white mb-2">
-                {activeReport.suggestedDirection || "Deeper colours, simple layers and softer front-facing light."}
+                {activeReport.suggestedDirection}
               </h2>
               <p className="text-xs text-zinc-400 leading-relaxed max-w-2xl mb-4">
                 Priorities evaluated: <strong className="text-zinc-200">{userPriorities}</strong>. 
@@ -830,255 +725,9 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Printable Document Container (Matches Approved Format) */}
+                {/* Printable Document Container (Matches Full Report Format) */}
                 <div id="printable-report" className="space-y-8 bg-zinc-950 p-6 sm:p-8 rounded-2xl border border-zinc-900">
-                  
-                  {/* Guide Header */}
-                  <div className="border-b border-zinc-800 pb-4">
-                    <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">
-                      AuraScan AI · Personal Style & Photo Guide
-                    </span>
-                    <h2 className="text-2xl font-black text-white tracking-tight mb-2">
-                      A practical starting point for colours, outfits and photographs
-                    </h2>
-                    <div className="grid sm:grid-cols-2 gap-2 text-xs text-zinc-400">
-                      <p><strong className="text-zinc-300">Your priorities:</strong> {userPriorities}</p>
-                      <p><strong className="text-zinc-300">Your preferences:</strong> {userStylePref}</p>
-                    </div>
-                  </div>
-
-                  {/* 1. Quick-Start Recommendations */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      1. Your quick-start recommendations
-                    </h3>
-                    <p className="text-xs font-semibold text-zinc-200">
-                      Suggested direction: {activeReport.suggestedDirection}
-                    </p>
-                    <div className="grid sm:grid-cols-3 gap-3 text-xs">
-                      {activeReport.quickStartChanges.map((change: any, idx: number) => (
-                        <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
-                          <span className="font-bold text-white block mb-1.5">{idx + 1}. {change.title}</span>
-                          <p className="text-zinc-400 leading-relaxed">{change.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-3 bg-zinc-900/30 rounded-lg border border-zinc-800 text-xs text-zinc-300">
-                      <strong className="text-white">Start with what you own:</strong> A navy top, dark jeans and clean trainers are enough to test these recommendations immediately.
-                    </div>
-                  </section>
-
-                  {/* 2. What your photographs can tell us */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      2. What your photographs can tell us
-                    </h3>
-                    <div className="border border-zinc-800 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
-                          <tr>
-                            <th className="p-3">Image observation</th>
-                            <th className="p-3">Why it matters</th>
-                            <th className="p-3">What to try</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                          {activeReport.photoObservations.map((obs: any, idx: number) => (
-                            <tr key={idx} className="hover:bg-zinc-900/40">
-                              <td className="p-3 text-zinc-200">{obs.observation}</td>
-                              <td className="p-3 text-zinc-400">{obs.why}</td>
-                              <td className="p-3 text-cyan-300">{obs.tryThis}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 text-xs space-y-1">
-                      <span className="font-bold text-zinc-200 block mb-1">Assessment confidence:</span>
-                      {activeReport.confidenceNotes.map((note: string, idx: number) => (
-                        <p key={idx} className="text-zinc-400">• {note}</p>
-                      ))}
-                      <p className="text-[11px] text-zinc-500 pt-2 italic">
-                        *We do not assign arbitrary facial scores. Recommendations concern styling and photographic presentation.
-                      </p>
-                    </div>
-                  </section>
-
-                  {/* 3. Starter colour palette */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      3. Your starter colour palette
-                    </h3>
-                    <p className="text-xs text-zinc-400">
-                      Working direction: cool-to-neutral, medium-to-deep colours. Treat this as a palette to test, rather than a rigid rule.
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                      {activeReport.palette.map((p: any) => (
-                        <div key={p.hex} className="bg-zinc-900/70 p-3 rounded-xl border border-zinc-800 flex flex-col justify-between">
-                          <div>
-                            <div className="w-full h-12 rounded-lg border border-zinc-700 mb-2" style={{ backgroundColor: p.hex }} />
-                            <span className="text-xs font-bold text-white block">{p.name}</span>
-                            <span className="text-[10px] font-mono text-zinc-400">{p.hex}</span>
-                          </div>
-                          <p className="text-[10px] text-zinc-500 mt-2 border-t border-zinc-800 pt-1.5 leading-snug">{p.use}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-800 text-xs text-zinc-400 space-y-1">
-                      <strong className="text-zinc-200 block">Try this before shopping:</strong>
-                      <p>Photograph yourself in navy, beige and soft white under identical daylight. Compare which photograph keeps attention on your face and which colour you actually enjoy wearing.</p>
-                    </div>
-                  </section>
-
-                  {/* 4. Three outfits built around the same pieces */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      4. Three outfits built around the same pieces
-                    </h3>
-                    <div className="grid md:grid-cols-3 gap-4 text-xs">
-                      {activeReport.outfits.map((outfit: any, idx: number) => (
-                        <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 flex flex-col justify-between">
-                          <div>
-                            <h4 className="font-bold text-white text-sm mb-2">{outfit.title}</h4>
-                            <p className="font-semibold text-violet-300 mb-2 leading-relaxed">{outfit.pieces}</p>
-                            <p className="text-zinc-400 leading-relaxed mb-3"><strong>Why it fits:</strong> {outfit.why}</p>
-                          </div>
-                          <div className="space-y-1.5 border-t border-zinc-800/80 pt-2 text-[11px]">
-                            <p className="text-zinc-300"><strong>Use what you own:</strong> {outfit.ownAlternative}</p>
-                            <p className="text-zinc-500"><strong>Check:</strong> {outfit.checkBefore}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  {/* 5. Repeatable Photo Setup */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      5. Your next profile photograph: a repeatable setup
-                    </h3>
-                    <div className="bg-zinc-900/60 p-5 rounded-xl border border-zinc-800 text-xs space-y-2">
-                      <span className="font-bold text-zinc-200 block mb-1">Recreate this setup at home:</span>
-                      <ul className="grid sm:grid-cols-2 gap-2 text-zinc-300">
-                        {activeReport.photoChecklist.map((step: string, idx: number) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </section>
-
-                  {/* 6. Finishing Details & Limitations */}
-                  <section className="space-y-3 text-xs">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      6. Finishing details worth checking
-                    </h3>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
-                        <span className="font-bold text-zinc-200 block mb-2">High-value quick adjustments:</span>
-                        <ul className="space-y-1.5 text-zinc-300 list-disc pl-4">
-                          {activeReport.finishingDetails.map((d: string, idx: number) => (
-                            <li key={idx}>{d}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
-                        <span className="font-bold text-zinc-400 block mb-2">What we cannot determine:</span>
-                        <p className="text-zinc-400 leading-relaxed mb-2">
-                          These photographs are not enough to recommend a precise haircut, assess hair texture or diagnose skin concerns.
-                        </p>
-                        <p className="text-zinc-500">
-                          To get haircut suggestions in a future assessment, provide a clear 360-degree view of your current hair and describe your routine.
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* 7. Shopping Plan */}
-                  <section className="space-y-3 text-xs">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      7. Your shopping plan
-                    </h3>
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-semibold">
-                      Rule: Buy nothing until you have tried the outfits with existing clothes.
-                    </div>
-                    <div className="border border-zinc-800 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
-                          <tr>
-                            <th className="p-3">Priority</th>
-                            <th className="p-3">Possible addition</th>
-                            <th className="p-3">Buy only if…</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                          {activeReport.shoppingPlan.map((s: any) => (
-                            <tr key={s.priority}>
-                              <td className="p-3 font-bold text-violet-400">#{s.priority}</td>
-                              <td className="p-3 text-white font-medium">{s.item}</td>
-                              <td className="p-3 text-zinc-400">{s.buyOnlyIf}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-
-                  {/* 8. Seven-Day Action Plan */}
-                  <section className="space-y-3 text-xs">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                      8. Your seven-day action plan
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {activeReport.actionPlan.map((p: any) => (
-                        <div key={p.day} className="bg-zinc-900/60 p-3 rounded-lg border border-zinc-800">
-                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1">{p.day}</span>
-                          <p className="text-zinc-300 leading-snug">{p.task}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  {/* Curated Recommendations (Amazon UK Compliant) */}
-                  <section className="border-t border-zinc-800 pt-6">
-                    <div className="flex justify-between items-baseline mb-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-                        <ShoppingBag size={14} className="text-emerald-400" /> Reference Wardrobe & Gear Matches
-                      </h4>
-                      <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                        Ad / Affiliate
-                      </span>
-                    </div>
-                    <div className="grid sm:grid-cols-3 gap-3">
-                      {(affiliateCatalog["Soft Summer"]).map((item, idx) => (
-                        <a 
-                          key={idx}
-                          href={generateAffiliateLink(item.asin)}
-                          target="_blank"
-                          rel="noopener noreferrer sponsored"
-                          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-3.5 rounded-xl flex flex-col justify-between group transition-colors"
-                        >
-                          <div>
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400 block mb-1">{item.category}</span>
-                            <h5 className="text-xs font-bold text-zinc-200 group-hover:text-white flex items-center justify-between">
-                              {item.title}
-                              <ExternalLink size={11} className="text-zinc-500 group-hover:text-zinc-300 ml-1 shrink-0" />
-                            </h5>
-                            <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">{item.note}</p>
-                          </div>
-                          <span className="text-[10px] text-zinc-500 mt-2.5 pt-1.5 border-t border-zinc-800/80 block">
-                            View on Amazon UK →
-                          </span>
-                        </a>
-                      ))}
-                    </div>
-                    <div className="mt-3 p-2.5 bg-zinc-900/30 border border-zinc-800/60 rounded-lg text-[10px] text-zinc-500">
-                      As an Amazon Associate I earn from qualifying purchases.
-                    </div>
-                  </section>
-
+                  <ReportContent report={activeReport} />
                 </div>
               </div>
             )}
@@ -1159,7 +808,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Paywall Stripe Modal */}
+      {/* Stripe Modal */}
       {isPaywallModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-zinc-900 w-full max-w-sm rounded-2xl border border-zinc-800 p-6 shadow-2xl relative">
@@ -1187,53 +836,286 @@ export default function App() {
         </div>
       )}
 
-      {/* Privacy Policy Modal */}
+      {/* Legal Modals */}
       {activeModal === 'privacy' && (
         <LegalModal title="Privacy Policy" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
             <p><strong>Data Controller:</strong> PT Digital Consulting, Bristol, UK. Contact: privacy@aurascan.ai</p>
-            <p><strong>Personal Data Collected:</strong> Front-facing portrait and full-body photographs uploaded for styling and appearance analysis.</p>
-            <p><strong>Purpose & Lawful Basis:</strong> Processing is performed strictly to fulfill your requested styling audit (Contractual Necessity / Consent under UK GDPR).</p>
-            <p><strong>Sub-processors & AI Processing:</strong> Images are processed via encrypted API endpoints using Google Gemini (Google Cloud Platform). Data is processed ephemerally in volatile memory.</p>
-            <p><strong>Retention Period:</strong> Uploaded photographs are <strong>automatically purged within 60 minutes</strong> of analysis completion. We do not retain biometric templates, facial recognition models, or persistent image archives.</p>
-            <p><strong>Your Rights:</strong> Under the UK GDPR, you maintain rights of access, rectification, erasure, and objection. To request immediate manual purging of transaction logs, email privacy@aurascan.ai.</p>
+            <p><strong>Personal Data Collected:</strong> Front-facing portrait and full-body photographs uploaded for styling analysis.</p>
+            <p><strong>Retention Period:</strong> Uploaded photographs are <strong>automatically purged within 60 minutes</strong> of analysis completion.</p>
           </div>
         </LegalModal>
       )}
 
-      {/* Terms & Commercial Disclosure Modal */}
       {activeModal === 'terms' && (
         <LegalModal title="Terms of Service & Commercial Disclosures" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>Service Nature:</strong> AuraScan AI provides algorithmic styling, lighting, and wardrobe guidance based on computer vision analysis. It does not provide medical, orthopaedic, dermatological, or psychological advice.</p>
-            <p><strong>Age Requirement:</strong> You must be at least 18 years of age to submit photographs.</p>
-            <div>
-              <p className="font-semibold text-white mb-0.5">Commercial & Affiliate Disclosure:</p>
-              <p>
-                AuraScan AI participates in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.co.uk. 
-              </p>
-              <p className="mt-1 italic text-zinc-400">
-                &quot;As an Amazon Associate I earn from qualifying purchases.&quot;
-              </p>
-            </div>
-            <p><strong>Refund Policy:</strong> We offer a 14-day refund guarantee on one-time audit reports. If your analysis fails to provide actionable value, contact support@aurascan.ai with your transaction ID for a complete refund.</p>
-            <p><strong>Consumer Law Compliance:</strong> All demonstration analyses on this platform reflect sample outputs designed to illustrate report format. We do not publish fabricated consumer testimonials.</p>
+            <p><strong>Service Nature:</strong> AuraScan AI provides algorithmic styling guidance. It does not provide medical or dermatological advice.</p>
+            <p><strong>Refund Policy:</strong> 14-day refund guarantee on one-time audit reports.</p>
           </div>
         </LegalModal>
       )}
 
-      {/* How It Works Modal */}
       {activeModal === 'how-it-works' && (
         <LegalModal title="How AuraScan AI Works" onClose={() => setActiveModal(null)}>
           <div className="space-y-3 text-xs text-zinc-300">
             <p><strong>1. Dual Photo Input & Priorities:</strong> You select your current style priority and upload photos taken in natural daylight.</p>
             <p><strong>2. Computer Vision Assessment:</strong> Our models measure visual contrast ratios, lighting consistency, and camera framing angles.</p>
             <p><strong>3. Practical Actionable Guide:</strong> You receive an instant starter colour palette, 3 outfits based on what you own, and a repeatable camera setup.</p>
-            <p><strong>4. Ephemeral Purge:</strong> Uploaded image data is wiped from volatile memory within 60 minutes.</p>
           </div>
         </LegalModal>
       )}
 
+    </div>
+  );
+}
+
+// Reusable Report Component used identically in both front-page preview and paid dossier
+function ReportContent({ report }: { report: any }) {
+  return (
+    <div className="space-y-8">
+      {/* Header Info */}
+      <div className="border-b border-zinc-800 pb-4">
+        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">
+          AuraScan AI · Personal Style & Photo Guide
+        </span>
+        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
+          A practical starting point for colours, outfits and photographs
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-2 text-xs text-zinc-400">
+          <p><strong className="text-zinc-300">Your priorities:</strong> {report.priorities}</p>
+          <p><strong className="text-zinc-300">Your preferences:</strong> {report.preferences}</p>
+        </div>
+      </div>
+
+      {/* 1. Quick-Start Recommendations */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          1. Your quick-start recommendations
+        </h3>
+        <p className="text-xs font-semibold text-zinc-200">
+          Suggested direction: {report.suggestedDirection}
+        </p>
+        <div className="grid sm:grid-cols-3 gap-3 text-xs">
+          {report.quickStartChanges.map((change: any, idx: number) => (
+            <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
+              <span className="font-bold text-white block mb-1.5">{idx + 1}. {change.title}</span>
+              <p className="text-zinc-400 leading-relaxed">{change.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="p-3 bg-zinc-900/30 rounded-lg border border-zinc-800 text-xs text-zinc-300">
+          <strong className="text-white">Start with what you own:</strong> A navy top, dark jeans and clean trainers are enough to test these recommendations immediately.
+        </div>
+      </section>
+
+      {/* 2. What your photographs can tell us */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          2. What your photographs can tell us
+        </h3>
+        <div className="border border-zinc-800 rounded-xl overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
+              <tr>
+                <th className="p-3">Image observation</th>
+                <th className="p-3">Why it matters</th>
+                <th className="p-3">What to try</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800 text-zinc-300">
+              {report.photoObservations.map((obs: any, idx: number) => (
+                <tr key={idx} className="hover:bg-zinc-900/40">
+                  <td className="p-3 text-zinc-200">{obs.observation}</td>
+                  <td className="p-3 text-zinc-400">{obs.why}</td>
+                  <td className="p-3 text-cyan-300">{obs.tryThis}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 text-xs space-y-1">
+          <span className="font-bold text-zinc-200 block mb-1">Assessment confidence:</span>
+          {report.confidenceNotes.map((note: string, idx: number) => (
+            <p key={idx} className="text-zinc-400">• {note}</p>
+          ))}
+          <p className="text-[11px] text-zinc-500 pt-2 italic">
+            *We do not assign arbitrary facial scores. Recommendations concern styling and photographic presentation.
+          </p>
+        </div>
+      </section>
+
+      {/* 3. Starter colour palette */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          3. Your starter colour palette
+        </h3>
+        <p className="text-xs text-zinc-400">
+          Working direction: cool-to-neutral, medium-to-deep colours. Treat this as a palette to test, rather than a rigid rule.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {report.palette.map((p: any) => (
+            <div key={p.hex} className="bg-zinc-900/70 p-3 rounded-xl border border-zinc-800 flex flex-col justify-between">
+              <div>
+                <div className="w-full h-12 rounded-lg border border-zinc-700 mb-2" style={{ backgroundColor: p.hex }} />
+                <span className="text-xs font-bold text-white block">{p.name}</span>
+                <span className="text-[10px] font-mono text-zinc-400">{p.hex}</span>
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-2 border-t border-zinc-800 pt-1.5 leading-snug">{p.use}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-800 text-xs text-zinc-400 space-y-1">
+          <strong className="text-zinc-200 block">Try this before shopping:</strong>
+          <p>Photograph yourself in navy, beige and soft white under identical daylight. Compare which photograph keeps attention on your face and which colour you actually enjoy wearing.</p>
+        </div>
+      </section>
+
+      {/* 4. Three outfits built around the same pieces */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          4. Three outfits built around the same pieces
+        </h3>
+        <div className="grid md:grid-cols-3 gap-4 text-xs">
+          {report.outfits.map((outfit: any, idx: number) => (
+            <div key={idx} className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold text-white text-sm mb-2">{outfit.title}</h4>
+                <p className="font-semibold text-violet-300 mb-2 leading-relaxed">{outfit.pieces}</p>
+                <p className="text-zinc-400 leading-relaxed mb-3"><strong>Why it fits:</strong> {outfit.why}</p>
+              </div>
+              <div className="space-y-1.5 border-t border-zinc-800/80 pt-2 text-[11px]">
+                <p className="text-zinc-300"><strong>Use what you own:</strong> {outfit.ownAlternative}</p>
+                <p className="text-zinc-500"><strong>Check:</strong> {outfit.checkBefore}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. Repeatable Photo Setup */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          5. Your next profile photograph: a repeatable setup
+        </h3>
+        <div className="bg-zinc-900/60 p-5 rounded-xl border border-zinc-800 text-xs space-y-2">
+          <span className="font-bold text-zinc-200 block mb-1">Recreate this setup at home:</span>
+          <ul className="grid sm:grid-cols-2 gap-2 text-zinc-300">
+            {report.photoChecklist.map((step: string, idx: number) => (
+              <li key={idx} className="flex items-start gap-2">
+                <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+                <span>{step}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* 6. Finishing Details & Limitations */}
+      <section className="space-y-3 text-xs">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          6. Finishing details worth checking
+        </h3>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
+            <span className="font-bold text-zinc-200 block mb-2">High-value quick adjustments:</span>
+            <ul className="space-y-1.5 text-zinc-300 list-disc pl-4">
+              {report.finishingDetails.map((d: string, idx: number) => (
+                <li key={idx}>{d}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800">
+            <span className="font-bold text-zinc-400 block mb-2">What we cannot determine:</span>
+            <p className="text-zinc-400 leading-relaxed mb-2">
+              These photographs are not enough to recommend a precise haircut, assess hair texture or diagnose skin concerns.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Shopping Plan */}
+      <section className="space-y-3 text-xs">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          7. Your shopping plan
+        </h3>
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-semibold">
+          Rule: Buy nothing until you have tried the outfits with existing clothes.
+        </div>
+        <div className="border border-zinc-800 rounded-xl overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
+              <tr>
+                <th className="p-3">Priority</th>
+                <th className="p-3">Possible addition</th>
+                <th className="p-3">Buy only if…</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800 text-zinc-300">
+              {report.shoppingPlan.map((s: any) => (
+                <tr key={s.priority}>
+                  <td className="p-3 font-bold text-violet-400">#{s.priority}</td>
+                  <td className="p-3 text-white font-medium">{s.item}</td>
+                  <td className="p-3 text-zinc-400">{s.buyOnlyIf}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 8. Seven-Day Action Plan */}
+      <section className="space-y-3 text-xs">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          8. Your seven-day action plan
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {report.actionPlan.map((p: any) => (
+            <div key={p.day} className="bg-zinc-900/60 p-3 rounded-lg border border-zinc-800">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1">{p.day}</span>
+              <p className="text-zinc-300 leading-snug">{p.task}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Curated Recommendations (Amazon UK Compliant) */}
+      <section className="border-t border-zinc-800 pt-6">
+        <div className="flex justify-between items-baseline mb-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+            <ShoppingBag size={14} className="text-emerald-400" /> Reference Wardrobe & Gear Matches
+          </h4>
+          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+            Ad / Affiliate
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {(affiliateCatalog["Soft Summer"]).map((item, idx) => (
+            <a 
+              key={idx}
+              href={generateAffiliateLink(item.asin)}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-3.5 rounded-xl flex flex-col justify-between group transition-colors"
+            >
+              <div>
+                <span className="text-[9px] uppercase tracking-wider font-bold text-violet-400 block mb-1">{item.category}</span>
+                <h5 className="text-xs font-bold text-zinc-200 group-hover:text-white flex items-center justify-between">
+                  {item.title}
+                  <ExternalLink size={11} className="text-zinc-500 group-hover:text-zinc-300 ml-1 shrink-0" />
+                </h5>
+                <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">{item.note}</p>
+              </div>
+              <span className="text-[10px] text-zinc-500 mt-2.5 pt-1.5 border-t border-zinc-800/80 block">
+                View on Amazon UK →
+              </span>
+            </a>
+          ))}
+        </div>
+        <div className="mt-3 p-2.5 bg-zinc-900/30 border border-zinc-800/60 rounded-lg text-[10px] text-zinc-500">
+          As an Amazon Associate I earn from qualifying purchases.
+        </div>
+      </section>
     </div>
   );
 }
