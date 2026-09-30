@@ -347,6 +347,100 @@ export default function App() {
     }
   };
 
+  const handleDownloadSamplePdf = () => {
+    setIsGeneratingPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const primary = mockFreeResult;
+      const paid = mockPaidResult;
+
+      // Dark background
+      doc.setFillColor(9, 9, 11);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 150);
+      doc.text('SAMPLE CLIENT DOSSIER  |  AURASCAN AI (DEMONSTRATION)', 14, 18);
+
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.text('Sample Style, Colour & Photo Guide', 14, 27);
+
+      // Overview Panel
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, 38, 182, 18, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(167, 139, 250);
+      doc.text(`STYLE ARCHETYPE: ${primary.archetype.toUpperCase()}`, 18, 44);
+      doc.setTextColor(34, 211, 238);
+      doc.text(`COLOUR SEASON: ${primary.colorSeason.toUpperCase()}  |  UNDERTONE: ${primary.colorUndertone.toUpperCase()}`, 18, 50);
+
+      // 1. Facial & Lighting
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('1. Facial Harmony & Lighting Notes', 14, 64);
+
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, 68, 182, 20, 2, 2, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 160);
+      doc.text('Mandibular & Jawline Definition:', 18, 73);
+      doc.setTextColor(220, 220, 230);
+      doc.text(doc.splitTextToSize(paid.faceAnalysis.jawlineDefinition, 170), 18, 78);
+
+      // 2. Photo & Grooming
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('2. Recommended Camera & Grooming Settings', 14, 96);
+
+      doc.setFillColor(18, 18, 22);
+      doc.roundedRect(14, 100, 182, 24, 2, 2, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 160);
+      doc.text(`Optimal Portrait Lens: ${paid.groomingAndLightingSpecs.focalLength}`, 18, 105);
+      doc.text(`Lighting Colour Temperature: ${paid.groomingAndLightingSpecs.lightingKelvin}`, 100, 105);
+      doc.setTextColor(220, 220, 230);
+      doc.text(doc.splitTextToSize(`Camera Angle: ${paid.groomingAndLightingSpecs.cameraAngleRecommendation}`, 170), 18, 111);
+      doc.text(doc.splitTextToSize(`Neckline Advice: ${paid.groomingAndLightingSpecs.hairAndBeardDemarcation}`, 170), 18, 117);
+
+      // 3. Outfits
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('3. Curated Capsule Outfits (Sample Looks)', 14, 132);
+
+      let y = 136;
+      paid.capsuleOutfits.forEach((outfit, idx) => {
+        doc.setFillColor(18, 18, 22);
+        doc.roundedRect(14, y, 182, 22, 2, 2, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(167, 139, 250);
+        doc.text(`Look #${idx + 1}: ${outfit.title} (${outfit.setting})`, 18, y + 5);
+        doc.setFontSize(7);
+        doc.setTextColor(210, 210, 220);
+        doc.text(doc.splitTextToSize(outfit.pieces.join('   *   '), 170), 18, y + 11);
+        y += 26;
+      });
+
+      // Page 1 Footer
+      doc.setFontSize(7);
+      doc.setTextColor(110, 110, 120);
+      doc.text('Sample Demonstration Document  *  AuraScan AI  *  aurascan-ai-six.vercel.app', 14, 290);
+
+      doc.save('AuraScan-Sample-Style-Report.pdf');
+    } catch (err) {
+      console.error('Sample PDF export failed:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const displayOutfits = (scanResult?.capsuleOutfits && scanResult.capsuleOutfits.length > 0)
     ? scanResult.capsuleOutfits
     : defaultCapsuleOutfits;
@@ -531,36 +625,68 @@ export default function App() {
               </div>
             </div>
 
-            {/* DMCC-Compliant Demonstration Outputs */}
-            <div className="w-full mb-12">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-zinc-200">Example Report Outputs</h2>
-                <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Simulated Sample</span>
+            {/* Tangible Sample Report Preview */}
+            <div className="w-full max-w-2xl mb-12 border border-zinc-800 bg-zinc-900/40 rounded-2xl p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
+                <div>
+                  <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block mb-0.5">
+                    Interactive Preview
+                  </span>
+                  <h2 className="text-lg font-bold text-zinc-100">See What Your Style Report Looks Like</h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">Simulated example based on a Soft Summer profile.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSamplePdf}
+                  disabled={isGeneratingPdf}
+                  className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
+                >
+                  <Download size={13} />
+                  {isGeneratingPdf ? "Creating Sample..." : "Download Sample PDF"}
+                </button>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-5">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">Sample Profile A</span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300">Score: 88</span>
+              <div className="space-y-4">
+                {/* Swatch & Season Preview */}
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                  <div className="flex justify-between items-baseline mb-2">
+                    <span className="text-xs font-bold text-cyan-400">Sample Colour Palette</span>
+                    <span className="text-[11px] text-zinc-400 font-medium">Soft Summer (Cool-Neutral)</span>
                   </div>
-                  <h3 className="font-semibold text-sm text-zinc-200 mb-2">High-Contrast Winter Framing</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Demonstration output showing transition from pastel knits to structured navy tailoring, elevating jaw definition and eye contrast.
-                  </p>
+                  <p className="text-xs text-zinc-400 mb-3">Muted cool tones that add definition without washing out skin tone:</p>
+                  <div className="flex gap-2">
+                    {["#4A6B82", "#5C768D", "#6B8E9B", "#2E4053"].map((hex) => (
+                      <div key={hex} className="flex-1 flex flex-col items-center">
+                        <div className="w-full h-8 rounded-md border border-zinc-700" style={{ backgroundColor: hex }} />
+                        <span className="text-[10px] font-mono text-zinc-400 mt-1">{hex}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-5">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Sample Profile B</span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300">Score: 82</span>
-                  </div>
-                  <h3 className="font-semibold text-sm text-zinc-200 mb-2">Posture Presentation Alignment</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Demonstration output showing lens pitch adjustment and structured collar height to eliminate forward head tilt shadows.
+                {/* Outfit Formula Sample */}
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                  <span className="text-xs font-bold text-violet-400 block mb-1">Sample Outfit Formula</span>
+                  <h3 className="text-xs font-bold text-white mb-2">Casual Sharp (Social & Dating)</h3>
+                  <ul className="text-xs text-zinc-300 space-y-1">
+                    <li className="flex items-center gap-1.5"><span className="text-violet-400">•</span> Muted slate blue Oxford shirt</li>
+                    <li className="flex items-center gap-1.5"><span className="text-violet-400">•</span> Charcoal slim-tapered chinos</li>
+                    <li className="flex items-center gap-1.5"><span className="text-violet-400">•</span> Clean white leather minimalist trainers</li>
+                  </ul>
+                </div>
+
+                {/* Photo Tip Sample */}
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-xs">
+                  <span className="text-xs font-bold text-emerald-400 block mb-1">Sample Camera & Lighting Tip</span>
+                  <p className="text-zinc-300 leading-relaxed">
+                    Use an 85mm lens equivalent at eye height with 5200K–5600K daylight lighting to prevent facial distortion and keep skin tones accurate.
                   </p>
                 </div>
               </div>
+
+              <p className="text-[10px] text-zinc-500 mt-4 text-center">
+                Simulated demonstration. Your actual report will be calculated specifically from your photos.
+              </p>
             </div>
 
           </div>
