@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { face, body } = await req.json();
+    const { face, body, priorities, stylePref, budget } = await req.json();
 
     if (!face || !body) {
       return NextResponse.json(
-        { error: 'Both face and body images are required.' }, 
+        { error: 'Both face and body photographs are required.' }, 
         { status: 400 }
       );
     }
@@ -37,18 +37,23 @@ export async function POST(req: NextRequest) {
     const faceData = extractData(face);
     const bodyData = extractData(body);
 
-    const prompt = `Act as an elite personal stylist, aesthetician, and executive image consultant. 
-Analyze the two provided images (portrait and full body). 
-Provide an objective, highly actionable appearance audit. 
-Generate a unique random scanId string.
-Adhere strictly to the requested schema, ensuring:
-- Free tier summary: Aura score, archetype, seasonal color profile, and undertone evaluation.
-- Detailed paid deliverables:
-  1. Facial harmony metrics (jawline definition and lighting response).
-  2. Hex color swatches (best enhancing colors vs colors to limit).
-  3. Precise photography and grooming specifications (optimal portrait focal length, lighting Kelvin range, camera tilt, and neckline/taper demarcations).
-  4. 3 distinct capsule outfits (Casual Sharp, Business Casual, Evening Occasion) using colors and silhouettes tailored to their detected profile.
-  5. 4-week structured appearance protocol.
+    const clientContext = `
+Customer Priorities: ${priorities || 'Dating profile photos and casual wardrobe'}
+Preferred Style: ${stylePref || 'Relaxed, minimal patterns'}
+Current Budget: ${budget || '£0 (Use what I own)'}
+`;
+
+    const prompt = `Act as an expert, pragmatic personal stylist and portrait photography consultant. 
+Analyze the two supplied images (first is portrait, second is full body).
+Client Context:
+${clientContext}
+
+Provide a practical, actionable styling and photography guide adhering strictly to this methodology:
+1. Do NOT assign any numerical beauty, appearance, or attractiveness scores. Focus strictly on lighting, angles, clothing contrast, and silhouette coordination.
+2. Ground all advice in what the user already owns first (e.g., standard dark jeans, plain tops, casual overshirts).
+3. Connect each major recommendation directly to visible cues in the images (e.g., uneven lighting, low camera angles, lack of separation between shirt and skin).
+4. Outline realistic confidence limitations (e.g., acknowledge lighting consistency or camera processing variations).
+
 Return ONLY valid JSON adhering strictly to the schema.`;
 
     const requestPayload = {
@@ -72,104 +77,111 @@ Return ONLY valid JSON adhering strictly to the schema.`;
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            scanId: { type: Type.STRING },
-            overallScore: { type: Type.INTEGER },
-            archetype: { type: Type.STRING },
-            colorSeason: { type: Type.STRING },
-            colorUndertone: { type: Type.STRING },
-            teaserMessage: { type: Type.STRING },
-            faceAnalysis: {
-              type: Type.OBJECT,
-              properties: {
-                harmonyScore: { type: Type.INTEGER },
-                jawlineDefinition: { type: Type.STRING },
-                skinClarityNotes: { type: Type.STRING }
-              },
-              required: ['harmonyScore', 'jawlineDefinition', 'skinClarityNotes']
-            },
-            colorAnalysis: {
-              type: Type.OBJECT,
-              properties: {
-                bestColors: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING } 
-                },
-                avoidColors: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING } 
-                },
-                recommendedJewelry: { type: Type.STRING },
-                contrastLevel: { type: Type.STRING }
-              },
-              required: ['bestColors', 'avoidColors', 'recommendedJewelry', 'contrastLevel']
-            },
-            groomingAndLightingSpecs: {
-              type: Type.OBJECT,
-              properties: {
-                focalLength: { type: Type.STRING },
-                lightingKelvin: { type: Type.STRING },
-                cameraAngleRecommendation: { type: Type.STRING },
-                hairAndBeardDemarcation: { type: Type.STRING }
-              },
-              required: [
-                'focalLength', 
-                'lightingKelvin', 
-                'cameraAngleRecommendation', 
-                'hairAndBeardDemarcation'
-              ]
-            },
-            capsuleOutfits: {
+            customerName: { type: Type.STRING },
+            suggestedDirection: { type: Type.STRING },
+            quickStartChanges: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
                   title: { type: Type.STRING },
-                  setting: { type: Type.STRING },
-                  paletteNote: { type: Type.STRING },
-                  pieces: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING } 
-                  }
+                  desc: { type: Type.STRING }
                 },
-                required: ['title', 'setting', 'paletteNote', 'pieces']
+                required: ['title', 'desc']
               }
             },
-            glowUpPlan: {
+            photoObservations: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  week: { type: Type.INTEGER },
-                  focus: { type: Type.STRING },
-                  actions: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING } 
-                  }
+                  observation: { type: Type.STRING },
+                  why: { type: Type.STRING },
+                  tryThis: { type: Type.STRING }
                 },
-                required: ['week', 'focus', 'actions']
+                required: ['observation', 'why', 'tryThis']
+              }
+            },
+            confidenceNotes: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            palette: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  hex: { type: Type.STRING },
+                  use: { type: Type.STRING }
+                },
+                required: ['name', 'hex', 'use']
+              }
+            },
+            outfits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  pieces: { type: Type.STRING },
+                  why: { type: Type.STRING },
+                  ownAlternative: { type: Type.STRING },
+                  checkBefore: { type: Type.STRING }
+                },
+                required: ['title', 'pieces', 'why', 'ownAlternative', 'checkBefore']
+              }
+            },
+            photoChecklist: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            finishingDetails: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            shoppingPlan: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  priority: { type: Type.INTEGER },
+                  item: { type: Type.STRING },
+                  buyOnlyIf: { type: Type.STRING }
+                },
+                required: ['priority', 'item', 'buyOnlyIf']
+              }
+            },
+            actionPlan: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  day: { type: Type.STRING },
+                  task: { type: Type.STRING }
+                },
+                required: ['day', 'task']
               }
             }
           },
           required: [
-            'scanId',
-            'overallScore',
-            'archetype',
-            'colorSeason',
-            'colorUndertone',
-            'teaserMessage',
-            'faceAnalysis',
-            'colorAnalysis',
-            'groomingAndLightingSpecs',
-            'capsuleOutfits',
-            'glowUpPlan'
+            'suggestedDirection',
+            'quickStartChanges',
+            'photoObservations',
+            'confidenceNotes',
+            'palette',
+            'outfits',
+            'photoChecklist',
+            'finishingDetails',
+            'shoppingPlan',
+            'actionPlan'
           ]
         }
       }
     };
 
     const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.8-flash-lite',
+      'gemini-2.5-flash',
       'gemini-2.5-flash-lite'
     ];
 
@@ -195,7 +207,7 @@ Return ONLY valid JSON adhering strictly to the schema.`;
             await new Promise((res) => setTimeout(res, 1200));
             continue;
           }
-          break; // Move to the next candidate model
+          break;
         }
       }
 
@@ -203,15 +215,15 @@ Return ONLY valid JSON adhering strictly to the schema.`;
     }
 
     if (!outputText) {
-      throw lastError || new Error('Unable to complete visual analysis at this moment.');
+      throw lastError || new Error('Unable to complete styling analysis at this time.');
     }
 
     return NextResponse.json(JSON.parse(outputText));
 
   } catch (error: any) {
-    console.error('[Gemini Pipeline Error]:', error);
+    console.error('[AuraScan Engine Error]:', error);
     return NextResponse.json(
-      { error: error.message || 'Vision analysis unavailable.' }, 
+      { error: error.message || 'Style analysis pipeline unavailable.' }, 
       { status: 500 }
     );
   }
