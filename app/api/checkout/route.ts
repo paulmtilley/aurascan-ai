@@ -1,51 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' as any })
-  : null;
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    if (!stripe) {
-      return NextResponse.json(
-        { error: 'STRIPE_SECRET_KEY is not configured in environment variables.' },
-        { status: 500 }
-      );
+    const { scanId } = await req.json();
+
+    if (!scanId) {
+      return NextResponse.json({ error: 'Missing report reference ID' }, { status: 400 });
     }
 
-    const { scanId } = await req.json().catch(() => ({ scanId: null }));
-    const origin = req.headers.get('origin') || 'http://localhost:3000';
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      return NextResponse.json({ error: 'Stripe configuration missing' }, { status: 500 });
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2024-06-20' as any,
+    });
+
+    const host = req.headers.get('host') || 'aurascan-ai-six.vercel.app';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'gbp',
             product_data: {
-              name: 'AuraScan AI - Full Appearance & Aesthetic Audit',
-              description: 'Unlocks complete facial harmony analysis, posture breakdown, wardrobe palette, and 30-day glow-up protocol.',
+              name: 'AuraScan AI: Personal Style & Photography Guide',
+              description: 'Complete 8-part personal guide: 3 outfits, starter colour swatches, repeatable camera setup, and 7-day action protocol.',
             },
-            unit_amount: 999,
+            unit_amount: 799, // £7.99 in pence
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      metadata: {
-        scanId: scanId || 'unknown_scan',
-      },
-      success_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}&paid=true`,
-      cancel_url: `${origin}/`,
+      metadata: { scanId },
+      success_url: `${baseUrl}/?session_id={CHECKOUT_SESSION_ID}&scan_id=${encodeURIComponent(scanId)}`,
+      cancel_url: `${baseUrl}/?canceled=true`,
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to initiate Stripe checkout.' },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    console.error('[Stripe Checkout Error]:', err);
+    return NextResponse.json({ error: err.message || 'Payment initiation failed' }, { status: 500 });
   }
 }
