@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   title: 'AI Personal Styling & Profile Photo Advice | AuraScan AI',
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-zinc-950 text-zinc-100 antialiased selection:bg-violet-500/30">
         {children}
+        <Analytics />
       </body>
     </html>
   );
