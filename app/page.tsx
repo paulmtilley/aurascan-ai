@@ -5,12 +5,12 @@ import {
   Lock, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, Download, AlertCircle, RefreshCcw,
   ShieldCheck, Info, FileText, ShoppingBag, Camera,
-  Check, ChevronDown, ChevronUp, X, Printer
+  Check, ChevronDown, ChevronUp, X, Printer, ArrowLeft
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
-// Static demonstration model (Alex)
+// Static demonstration model (Alex) - strictly 6 numbered sections
 const alexSampleReport = {
   scanId: "demo_alex_sample",
   customerName: "Alex",
@@ -93,8 +93,16 @@ const alexSampleReport = {
   ]
 };
 
+// Safe downscaling only (never upscale smaller photos)
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      return reject(new Error('Please upload a valid JPEG or PNG file.'));
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      return reject(new Error('File size exceeds the 15MB limit. Please choose a smaller photo.'));
+    }
+
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -104,16 +112,17 @@ const compressImage = (file: File): Promise<string> => {
       img.src = result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1000;
-        const scale = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scale;
+        const MAX_WIDTH = 1200;
+        // Downscale ONLY if wider than MAX_WIDTH; never upscale
+        const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas failure'));
+        if (!ctx) return reject(new Error('Canvas failure.'));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
-      img.onerror = () => reject(new Error('Image decode error.'));
+      img.onerror = () => reject(new Error('Failed to decode image data.'));
     };
     reader.onerror = () => reject(new Error('File reader failed.'));
   });
@@ -139,13 +148,15 @@ export default function App() {
   const [isPaywallModalOpen, setIsPaywallModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isSampleExpanded, setIsSampleExpanded] = useState(false); // Default collapsed per audit
+  const [isSampleExpanded, setIsSampleExpanded] = useState(false);
 
-  // Escape key modal handling
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
+
+  // Accessibility: Escape key handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (activeModal) setActiveModal(null);
+        if (activeModal) closeModal();
         if (isPaywallModalOpen && !isProcessingPayment) setIsPaywallModalOpen(false);
       }
     };
@@ -153,37 +164,74 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeModal, isPaywallModalOpen, isProcessingPayment]);
 
-  // Server-verified Stripe return handler
+  const openModal = (name: 'privacy' | 'terms' | 'how-it-works') => {
+    lastActiveElementRef.current = document.activeElement as HTMLElement;
+    setActiveModal(name);
+  };
+
+  const closeModal = () => {
+    setActiveModal(null);
+    if (lastActiveElementRef.current) {
+      lastActiveElementRef.current.focus();
+    }
+  };
+
+  // Stripe Return & Persistent Report Recovery
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
+    const scanId = params.get('scan_id');
 
     if (sessionId) {
-      const verifyPayment = async () => {
+      const verifyPaymentAndRestore = async () => {
         try {
           const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
           const data = await res.json();
           if (data.verified) {
             setUserProfile({ isPaid: true });
             setIsDemoView(false);
-            setStep('results');
+
+            // Recover user's stored analysis from sessionStorage
+            const targetScanId = scanId || data.scanId;
+            let restored = null;
+            if (targetScanId) {
+              const cached = sessionStorage.getItem(`aurascan_${targetScanId}`);
+              if (cached) {
+                try {
+                  restored = JSON.parse(cached);
+                } catch (e) {
+                  console.error("Failed to parse cached scan", e);
+                }
+              }
+            }
+
+            if (restored) {
+              setScanResult(restored);
+              setStep('results');
+            } else {
+              // If opened in another tab/device or cache cleared
+              setError("Payment verified! If your report does not display automatically, please re-run your photos to view your unlocked results.");
+              setStep('upload');
+            }
           } else {
-            setError(data.error || "Payment session could not be verified.");
+            setError(data.error || "Payment session could not be verified. Access was not granted.");
             setUserProfile({ isPaid: false });
           }
         } catch (err) {
-          setError("Failed to verify payment with server.");
+          setError("Failed to verify payment with the server.");
           setUserProfile({ isPaid: false });
         } finally {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       };
-      verifyPayment();
+      verifyPaymentAndRestore();
     }
   }, []);
 
+  // Comprehensive reset: cleans all states and navigation
   const handleReset = () => {
+    setCurrentRoute('scan');
     setStep('upload');
     setFaceImage(null);
     setBodyImage(null);
@@ -198,17 +246,12 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError("Please select a standard JPEG or PNG photo.");
-      return;
-    }
-
     try {
       const compressed = await compressImage(file);
       if (type === 'face') setFaceImage(compressed);
       if (type === 'body') setBodyImage(compressed);
     } catch (err: any) {
-      setError(err?.message || "Image compression failed. Please try a different photo.");
+      setError(err?.message || "Image upload failed. Please try a different photo.");
     }
   };
 
@@ -218,7 +261,7 @@ export default function App() {
     setError(null);
 
     const states = [
-      "Inspecting photo clarity and verifying subject framing...",
+      "Inspecting photo clarity and verifying image framing...",
       "Evaluating lighting direction and skin contrast...",
       "Checking clothing tones against your selected priorities...",
       "Drafting personal style recommendations..."
@@ -247,7 +290,18 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Unable to assess the uploaded images. Please ensure your photos are well-lit and clearly depict a person.");
+        throw new Error(data.error || "Unable to assess the uploaded images. Please ensure your photos are clear and show a real person.");
+      }
+
+      // Generate and attach a unique scan ID
+      const generatedScanId = `scn_${Date.now()}`;
+      data.scanId = generatedScanId;
+
+      // Cache report to sessionStorage so Stripe redirect can recover it
+      try {
+        sessionStorage.setItem(`aurascan_${generatedScanId}`, JSON.stringify(data));
+      } catch (storageErr) {
+        console.warn("sessionStorage quota exceeded or disabled", storageErr);
       }
 
       setIsDemoView(false);
@@ -280,14 +334,14 @@ export default function App() {
     } catch (err: any) {
       setIsPaywallModalOpen(false);
       setIsProcessingPayment(false);
-      setError(err.message || "Checkout currently unavailable. Please try again in a moment.");
+      setError(err.message || "Checkout is currently unavailable. Please try again.");
     }
   };
 
   const handleExportCard = async () => {
     const node = document.getElementById('share-card');
     if (!node) {
-      setError("Unable to generate image preview card.");
+      setError("Unable to find summary card element.");
       return;
     }
     try {
@@ -297,7 +351,7 @@ export default function App() {
       link.href = dataUrl;
       link.click();
     } catch (err) {
-      setError("Failed to export summary card. Please take a manual screenshot.");
+      setError("Failed to export summary card image. Please take a manual screenshot.");
     }
   };
 
@@ -369,7 +423,7 @@ export default function App() {
 
       doc.save('AuraScan-Sample-Style-Guide.pdf');
     } catch (err) {
-      setError("Failed to create sample PDF download.");
+      setError("Failed to create sample PDF.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -388,27 +442,28 @@ export default function App() {
             className="font-bold text-lg tracking-tight flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 rounded-lg p-1"
             tabIndex={0}
             role="button"
+            aria-label="AuraScan AI Homepage"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleReset(); }}
           >
             <Sparkles className="text-violet-500" size={22} /> AuraScan AI
           </div>
           
-          <nav className="flex items-center gap-6 text-xs font-medium text-zinc-400">
+          <nav className="flex items-center gap-4 sm:gap-6 text-xs font-medium text-zinc-400">
             <button 
-              onClick={() => setActiveModal('how-it-works')} 
+              onClick={() => openModal('how-it-works')} 
               className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
             >
               How It Works
             </button>
             <button 
               onClick={() => setCurrentRoute('vs-face')} 
-              className="hover:text-white transition-colors hidden sm:block focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
             >
               vs Face Raters
             </button>
             <button 
               onClick={() => setCurrentRoute('vs-color')} 
-              className="hover:text-white transition-colors hidden sm:block focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
             >
               vs Color Palettes
             </button>
@@ -417,14 +472,14 @@ export default function App() {
                 onClick={() => setIsPaywallModalOpen(true)} 
                 className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
-                Unlock Full Guide (£7.99)
+                Unlock Guide (£7.99)
               </button>
             )}
           </nav>
         </div>
       </header>
 
-      {/* Main Page Body */}
+      {/* Main Container */}
       <main className="max-w-4xl mx-auto px-6 py-8 w-full flex-1">
         
         {error && (
@@ -439,6 +494,26 @@ export default function App() {
           </div>
         )}
 
+        {/* Comparison Route 1: vs Face Raters */}
+        {currentRoute === 'vs-face' && (
+          <SEOComparisonView 
+            title="AuraScan AI vs Appearance & Face Raters"
+            competitor="Face Rating Sites"
+            description="Assigning an arbitrary beauty score provides zero practical help. AuraScan delivers actionable lighting, clothing colour, and outfit guidance to improve how you look in photos."
+            onBack={() => setCurrentRoute('scan')}
+          />
+        )}
+
+        {/* Comparison Route 2: vs Color Palettes */}
+        {currentRoute === 'vs-color' && (
+          <SEOComparisonView 
+            title="AuraScan AI vs Standalone Colour Analyzers"
+            competitor="Generic Swatch Apps"
+            description="Knowing a seasonal label is unhelpful if you don't know how to pair pieces together with what you already own or if poor lighting distorts your photos."
+            onBack={() => setCurrentRoute('scan')}
+          />
+        )}
+
         {/* Step 1: Upload View (High Above the Fold) */}
         {currentRoute === 'scan' && step === 'upload' && (
           <div className="flex flex-col items-center">
@@ -451,7 +526,7 @@ export default function App() {
             </h1>
 
             <p className="text-zinc-300 text-center max-w-xl text-xs sm:text-sm mb-6">
-              Upload two photos to receive clear suggestions on colours, clothing layers, and camera angles. Free initial preview; £7.99 for your complete 8-part action guide.
+              Upload two photos to receive clear suggestions on colours, clothing layers, and camera angles. Free initial preview; £7.99 for your complete 6-part action guide.
             </p>
 
             {/* Quick Context Selectors */}
@@ -499,7 +574,18 @@ export default function App() {
               </div>
             </div>
 
-            {/* Compact Upload Controls */}
+            {/* Photo Framing Explanation Banner */}
+            <div className="w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3.5 mb-5 flex items-start gap-3 text-xs text-zinc-300">
+              <Info size={16} className="text-violet-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-zinc-200">Why two photos?</strong>
+                <p className="text-zinc-400 text-[11px] mt-0.5 leading-relaxed">
+                  The portrait assesses lighting angle and facial color contrast. The standing photo evaluates body silhouette and trouser-to-top proportions. Accepted formats: JPEG/PNG up to 15MB.
+                </p>
+              </div>
+            </div>
+
+            {/* Accessible Upload Controls */}
             <div className="grid md:grid-cols-2 gap-4 w-full max-w-2xl mb-5">
               <label 
                 htmlFor="face-upload"
@@ -512,9 +598,9 @@ export default function App() {
                 )}
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-xs sm:text-sm">{faceImage ? 'Portrait Attached' : '1. Close-up Portrait'}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Clear window daylight, eye-level</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Window daylight, eye-level, neutral expression</p>
                   <span className="inline-block mt-2 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300">
-                    {faceImage ? 'Replace' : 'Select Photo (JPEG/PNG)'}
+                    {faceImage ? 'Replace Photo' : 'Select Photo (JPEG/PNG)'}
                   </span>
                 </div>
                 <input 
@@ -538,9 +624,9 @@ export default function App() {
                 )}
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-xs sm:text-sm">{bodyImage ? 'Standing Photo Attached' : '2. Standing Photo'}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Head to knees, normal stance</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Head to knees, standard standing posture</p>
                   <span className="inline-block mt-2 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300">
-                    {bodyImage ? 'Replace' : 'Select Photo (JPEG/PNG)'}
+                    {bodyImage ? 'Replace Photo' : 'Select Photo (JPEG/PNG)'}
                   </span>
                 </div>
                 <input 
@@ -563,8 +649,8 @@ export default function App() {
               Get My Free Preview <Sparkles size={15} />
             </button>
 
-            <p className="text-[11px] text-zinc-500 text-center mb-8">
-              Confidential analysis processed in memory. No persistent storage. 18+ only.
+            <p className="text-[11px] text-zinc-400 text-center mb-8">
+              Analysis runs in ephemeral runtime memory. Photos are never stored or used to train models. 18+ only.
             </p>
 
             {/* Collapsed Sample Showcase */}
@@ -578,7 +664,7 @@ export default function App() {
                     See What Your Style & Photo Guide Looks Like
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    Demonstration Client: Alex · Dating profiles & relaxed wardrobe brief
+                    Demonstration Client: Alex · Dating profiles & relaxed casual wardrobe
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -630,21 +716,6 @@ export default function App() {
         {currentRoute === 'scan' && step === 'results' && activeReport && (
           <div className="space-y-6">
             
-            {isDemoView && (
-              <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-3.5 text-xs text-amber-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Info size={15} className="text-amber-400 shrink-0" />
-                  <span>Viewing demonstration profile (Alex).</span>
-                </div>
-                <button 
-                  onClick={handleReset}
-                  className="px-2.5 py-1 bg-amber-900/60 hover:bg-amber-800 text-amber-100 rounded text-[11px] font-semibold"
-                >
-                  Analyze My Photos
-                </button>
-              </div>
-            )}
-
             <div className="flex justify-between items-center">
               <button 
                 onClick={handleReset}
@@ -687,7 +758,7 @@ export default function App() {
                 >
                   Unlock Complete Guide – £7.99 one-time
                 </button>
-                <p className="text-[10px] text-zinc-600 mt-2.5">14-day refund guarantee if unsatisfied</p>
+                <p className="text-[10px] text-zinc-500 mt-2.5">14-day refund guarantee if unsatisfied · Instant access</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -760,12 +831,12 @@ export default function App() {
           <div>
             <span className="font-semibold text-zinc-400">AuraScan AI</span> · Operated by PT Digital Consulting (UK)
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setActiveModal('privacy')} className="hover:text-zinc-300">Privacy Policy</button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => openModal('privacy')} className="hover:text-zinc-300 transition-colors">Privacy Policy</button>
             <span>·</span>
-            <button onClick={() => setActiveModal('terms')} className="hover:text-zinc-300">Terms & Refunds</button>
+            <button onClick={() => openModal('terms')} className="hover:text-zinc-300 transition-colors">Terms & Refunds</button>
             <span>·</span>
-            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-300">Contact</a>
+            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-300 transition-colors">Contact</a>
           </div>
         </div>
       </footer>
@@ -786,10 +857,10 @@ export default function App() {
             >
               <X size={16} />
             </button>
-            <h3 id="paywall-title" className="text-base font-bold mb-1">Unlock Your Style & Photo Guide</h3>
-            <p className="text-xs text-zinc-400 mb-4">Complete 8-part report: outfits, starter palette, repeatable camera setup, and 7-day action protocol.</p>
+            <h3 id="paywall-title" className="text-base font-bold mb-1">Unlock Your Complete Style Guide</h3>
+            <p className="text-xs text-zinc-400 mb-4">6-part personalized action guide: 3 outfits, starter palette, repeatable photo setup, and 7-day action protocol.</p>
             <div className="flex justify-between items-center mb-5 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
-              <span className="text-xs text-zinc-300">One-Time Fee</span>
+              <span className="text-xs text-zinc-300">One-Time Price</span>
               <span className="text-base font-bold text-white">£7.99</span>
             </div>
             <button 
@@ -804,33 +875,41 @@ export default function App() {
         </div>
       )}
 
-      {/* Info Modals */}
-      {activeModal === 'privacy' && (
-        <LegalModal title="Data Protection & Privacy" onClose={() => setActiveModal(null)}>
-          <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>Data Controller:</strong> PT Digital Consulting, Bristol, UK (privacy@aurascan.ai).</p>
-            <p><strong>Ephemeral Processing:</strong> Photos are held in volatile RAM only for analysis and are purged upon completion. No images are written to disk or stored in persistent databases.</p>
-            <p><strong>No Model Training:</strong> Analysis is executed via Google Cloud enterprise endpoints; inputs are not used to train models.</p>
-          </div>
-        </LegalModal>
-      )}
+      {/* Info Modals with Accessible Focus & Semantic Dialog */}
+      {activeModal && (
+        <LegalModal 
+          title={
+            activeModal === 'privacy' ? 'Data Protection & Privacy Policy' :
+            activeModal === 'terms' ? 'Terms & Refund Policy' :
+            'How AuraScan AI Works'
+          }
+          onClose={closeModal}
+        >
+          {activeModal === 'privacy' && (
+            <div className="space-y-3 text-xs text-zinc-300 leading-relaxed">
+              <p><strong>Data Controller:</strong> PT Digital Consulting, Bristol, UK (<a href="mailto:privacy@aurascan.ai" className="text-violet-400 hover:underline">privacy@aurascan.ai</a>).</p>
+              <p><strong>Ephemeral In-Memory Processing:</strong> Uploaded photographs are held in volatile runtime memory (RAM) only for the duration of the analysis. No image files are written to disk, persistent object storage, or user databases.</p>
+              <p><strong>No AI Model Training:</strong> Analysis is executed via Google Cloud enterprise endpoints under strict terms confirming customer API inputs are never used to train foundation models.</p>
+              <p><strong>Immediate Purge:</strong> Image buffers are garbage-collected immediately upon completion of the response.</p>
+            </div>
+          )}
 
-      {activeModal === 'terms' && (
-        <LegalModal title="Terms & Refunds" onClose={() => setActiveModal(null)}>
-          <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>Service:</strong> Algorithmic styling suggestions based on contrast and lighting. Does not provide medical advice.</p>
-            <p><strong>Refund Guarantee:</strong> We offer a 14-day money-back guarantee. If your guide provides no practical value, email support@aurascan.ai with your reference for a full refund.</p>
-          </div>
-        </LegalModal>
-      )}
+          {activeModal === 'terms' && (
+            <div className="space-y-3 text-xs text-zinc-300 leading-relaxed">
+              <p><strong>Service Scope:</strong> AuraScan provides algorithmic styling, lighting, and wardrobe guidance based on computer vision. It does not provide medical, orthopaedic, or dermatological advice.</p>
+              <p><strong>14-Day Refund Guarantee:</strong> If your guide fails to provide practical value, email <a href="mailto:support@aurascan.ai" className="text-violet-400 hover:underline">support@aurascan.ai</a> with your scan reference ID for a prompt, complete refund.</p>
+              <p><strong>Age Requirement:</strong> You must be at least 18 years of age to submit photographs.</p>
+            </div>
+          )}
 
-      {activeModal === 'how-it-works' && (
-        <LegalModal title="How AuraScan AI Works" onClose={() => setActiveModal(null)}>
-          <div className="space-y-3 text-xs text-zinc-300">
-            <p><strong>1. Photo Assessment:</strong> Our vision models evaluate lighting direction, camera perspective, and color separation.</p>
-            <p><strong>2. Practical Recommendations:</strong> You receive an instant preview followed by a full guide with three outfit formulas built from clothes you likely own.</p>
-            <p><strong>3. Immediate Purge:</strong> Uploaded images are removed from runtime memory immediately upon report generation.</p>
-          </div>
+          {activeModal === 'how-it-works' && (
+            <div className="space-y-3 text-xs text-zinc-300 leading-relaxed">
+              <p><strong>1. Dual Photo Input:</strong> You select your priority and upload two photos (a portrait and a standing photo) taken in natural daylight.</p>
+              <p><strong>2. Visual Diagnostics:</strong> Our vision models evaluate lighting balance, color separation against skin tone, and camera framing angle.</p>
+              <p><strong>3. Practical Advice:</strong> You receive an instant free preview followed by the option to unlock all 6 actionable sections, including 3 outfits built around clothes you likely own.</p>
+              <p><strong>4. Immediate Purge:</strong> Uploaded images are removed from volatile memory immediately upon completion.</p>
+            </div>
+          )}
         </LegalModal>
       )}
 
@@ -838,7 +917,7 @@ export default function App() {
   );
 }
 
-// Reusable 8-Part Report Content (Clean H2 structure, zero hardcoded palette claims)
+// Reusable 6-Part Report Content
 function ReportContent({ report }: { report: any }) {
   if (!report) return null;
 
@@ -979,22 +1058,61 @@ function ReportContent({ report }: { report: any }) {
   );
 }
 
+// Accessible Modal with Focus Containment
 function LegalModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Focus the modal container on open
+    modalRef.current?.focus();
+
+    // Trap focus inside modal
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !modalRef.current) return;
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
+  }, []);
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="modal-title"
     >
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto shadow-2xl">
+      <div 
+        ref={modalRef}
+        tabIndex={-1}
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto shadow-2xl focus:outline-none"
+      >
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 text-zinc-500 hover:text-white p-1 rounded"
-          aria-label="Close"
+          className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded focus:outline-none focus:ring-2 focus:ring-violet-500"
+          aria-label="Close dialog"
         >
           <X size={16} />
         </button>
-        <h3 className="text-sm font-bold text-white mb-3 border-b border-zinc-800 pb-2">{title}</h3>
+        <h3 id="modal-title" className="text-sm font-bold text-white mb-3 border-b border-zinc-800 pb-2">{title}</h3>
         {children}
       </div>
     </div>
@@ -1006,12 +1124,12 @@ function SEOComparisonView({ title, competitor, description, onBack }: { title: 
     <div className="py-4 text-left">
       <button 
         onClick={onBack} 
-        className="text-xs text-violet-400 hover:underline mb-3 block"
+        className="text-xs text-violet-400 hover:underline mb-4 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
       >
-        ← Back to Guide
+        <ArrowLeft size={14} /> Back to Style Guide
       </button>
-      <h2 className="text-xl font-bold mb-2">{title}</h2>
-      <p className="text-xs text-zinc-400 mb-5">{description}</p>
+      <h2 className="text-xl sm:text-2xl font-bold mb-2 text-white">{title}</h2>
+      <p className="text-xs text-zinc-400 mb-6 max-w-2xl">{description}</p>
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-6">
         <table className="w-full text-left text-xs">
           <thead className="border-b border-zinc-800 bg-zinc-950 text-zinc-400">
