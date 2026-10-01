@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Lock, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, Download, AlertCircle, RefreshCcw,
-  ShieldCheck, Info, FileText, ShoppingBag, Camera,
+  ShieldCheck, Info, FileText, Camera,
   Check, ChevronDown, ChevronUp, X, Printer, ArrowLeft
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
@@ -210,7 +210,6 @@ export default function App() {
               setScanResult(restored);
               setStep('results');
             } else {
-              // If opened in another tab/device or cache cleared
               setError("Payment verified! If your report does not display automatically, please re-run your photos to view your unlocked results.");
               setStep('upload');
             }
@@ -229,7 +228,7 @@ export default function App() {
     }
   }, []);
 
-  // Comprehensive reset: cleans all states and navigation
+  // Comprehensive reset: clears all states and navigation
   const handleReset = () => {
     setCurrentRoute('scan');
     setStep('upload');
@@ -785,41 +784,117 @@ export default function App() {
               </div>
             )}
 
-            {/* Save Card Generator */}
-            <div className="text-center pt-4">
-              <div id="share-card" className="max-w-xs mx-auto aspect-[9/16] bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between shadow-xl text-left text-xs mb-3">
+            {/* Save & Social Sharing Suite */}
+            <div className="text-center pt-6 border-t border-zinc-900 mt-8">
+              <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block mb-1">
+                Save & Share
+              </span>
+              <h3 className="text-base font-bold text-white mb-1">Your Mobile Style Reference</h3>
+              <p className="text-xs text-zinc-400 max-w-sm mx-auto mb-4">
+                Save to your camera roll or share your calibrated colour direction with friends.
+              </p>
+
+              <div id="share-card" className="max-w-xs mx-auto aspect-[9/16] bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between shadow-2xl text-left text-xs mb-4">
                 <div>
                   <div className="flex justify-between items-center text-[10px] text-zinc-500 mb-3">
-                    <span className="font-bold text-zinc-300">AURASCAN AI</span>
-                    <span>STYLE SUMMARY</span>
+                    <span className="font-bold tracking-wider text-zinc-300">AURASCAN AI</span>
+                    <span>STYLE BRIEF</span>
                   </div>
-                  <h4 className="text-sm font-extrabold text-white mb-1">Your Style Rules</h4>
-                  <p className="text-[11px] text-violet-400">{activeReport.suggestedDirection}</p>
+                  <h4 className="text-sm font-extrabold text-white mb-1">Key Style Rules</h4>
+                  <p className="text-[11px] text-violet-400 font-medium leading-snug">{activeReport.suggestedDirection}</p>
                 </div>
 
-                <div className="space-y-2 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-[11px]">
+                <div className="space-y-2.5 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-[11px]">
                   <div>
-                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Easy Outfit</span>
-                    <p className="text-zinc-300">Plain top + dark jeans + open overshirt</p>
+                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-1">Testable Palette</span>
+                    <div className="flex gap-1.5">
+                      {activeReport.palette?.slice(0, 5).map((p: any) => (
+                        <div key={p.hex} className="w-5 h-5 rounded-full border border-zinc-700 shrink-0" style={{ backgroundColor: p.hex }} title={p.name} />
+                      ))}
+                    </div>
                   </div>
                   <div>
-                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Photo Setup</span>
-                    <p className="text-zinc-300">Window daylight · eye-level camera</p>
+                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Recommended Setup</span>
+                    <p className="text-zinc-300 text-[11px]">Indirect daylight · eye-level camera</p>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Core Formula</span>
+                    <p className="text-zinc-300 text-[11px]">Plain dark top + straight jeans + open layer</p>
                   </div>
                 </div>
 
                 <div className="border-t border-zinc-800 pt-2 flex justify-between items-end text-[10px] text-zinc-500">
-                  <span>Test first; buy only to fill gaps</span>
+                  <span>aurascan-ai-six.vercel.app</span>
                   <span className="text-[9px] bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 text-zinc-400">18+</span>
                 </div>
               </div>
 
-              <button 
-                onClick={handleExportCard}
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-full inline-flex items-center gap-1.5"
-              >
-                <Download size={13} /> Save Summary Card (PNG)
-              </button>
+              {/* Action Buttons: Download + Native Share */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-sm mx-auto mb-3">
+                <button 
+                  onClick={handleExportCard}
+                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Download size={13} /> Save Image (PNG)
+                </button>
+
+                <button 
+                  onClick={async () => {
+                    const shareText = "Just ran my profile photos through AuraScan AI to dial in my lighting and wardrobe colours. Check it out:";
+                    const shareUrl = "https://aurascan-ai-six.vercel.app";
+
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: "AuraScan AI Style & Photo Guide",
+                          text: shareText,
+                          url: shareUrl,
+                        });
+                      } catch (err) {
+                        // User cancelled
+                      }
+                    } else {
+                      navigator.clipboard.writeText(shareUrl);
+                      alert("Website link copied to clipboard!");
+                    }
+                  }}
+                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Sparkles size={13} /> Share with Friends
+                </button>
+              </div>
+
+              {/* Quick Platform Social Buttons */}
+              <div className="flex items-center justify-center gap-3 text-[11px] text-zinc-400">
+                <span>Quick share:</span>
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Got my profile photo lighting and wardrobe palette dialed in with AuraScan AI: https://aurascan-ai-six.vercel.app")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-400 transition-colors"
+                >
+                  WhatsApp
+                </a>
+                <span>·</span>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("Dialed in my profile photo lighting and colour palette with @AuraScanAI. Simple, practical advice from two photos:")}&url=${encodeURIComponent("https://aurascan-ai-six.vercel.app")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-sky-400 transition-colors"
+                >
+                  X (Twitter)
+                </a>
+                <span>·</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText("https://aurascan-ai-six.vercel.app");
+                    alert("Website link copied to clipboard!");
+                  }}
+                  className="hover:text-zinc-200 transition-colors"
+                >
+                  Copy Link
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1063,10 +1138,8 @@ function LegalModal({ title, children, onClose }: { title: string; children: Rea
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Focus the modal container on open
     modalRef.current?.focus();
 
-    // Trap focus inside modal
     const handleTabKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || !modalRef.current) return;
       const focusable = modalRef.current.querySelectorAll<HTMLElement>(
