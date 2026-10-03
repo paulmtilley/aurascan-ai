@@ -93,14 +93,14 @@ const alexSampleReport = {
   ]
 };
 
-// Safe downscaling only (never upscale smaller photos)
+// Downscale large images; avoid upscaling small images
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      return reject(new Error('Please upload a valid JPEG or PNG file.'));
+      return reject(new Error('Please upload a standard JPEG or PNG photo. For iPhones, ensure photo is saved as JPEG or PNG.'));
     }
     if (file.size > 15 * 1024 * 1024) {
-      return reject(new Error('File size exceeds the 15MB limit. Please choose a smaller photo.'));
+      return reject(new Error('File exceeds the 15MB limit. Please choose a smaller file.'));
     }
 
     const reader = new FileReader();
@@ -113,7 +113,6 @@ const compressImage = (file: File): Promise<string> => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 1200;
-        // Downscale ONLY if wider than MAX_WIDTH; never upscale
         const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
@@ -132,7 +131,7 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState<'scan' | 'vs-face' | 'vs-color'>('scan');
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'how-it-works' | null>(null);
 
-  // User input states
+  // User flow states
   const [step, setStep] = useState<string>('upload');
   const [userPriorities, setUserPriorities] = useState<string>("Dating profile photos");
   const [userStylePref, setUserStylePref] = useState<string>("Relaxed & minimal patterns");
@@ -152,18 +151,7 @@ export default function App() {
 
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Accessibility: Escape key handling
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (activeModal) closeModal();
-        if (isPaywallModalOpen && !isProcessingPayment) setIsPaywallModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeModal, isPaywallModalOpen, isProcessingPayment]);
-
+  // Modal open/close with focus restoration
   const openModal = (name: 'privacy' | 'terms' | 'how-it-works') => {
     lastActiveElementRef.current = document.activeElement as HTMLElement;
     setActiveModal(name);
@@ -176,7 +164,19 @@ export default function App() {
     }
   };
 
-  // Stripe Return & Persistent Report Recovery
+  // Keyboard accessibility: Escape key handling
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (activeModal) closeModal();
+        if (isPaywallModalOpen && !isProcessingPayment) setIsPaywallModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeModal, isPaywallModalOpen, isProcessingPayment]);
+
+  // Verified Stripe recovery
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -184,7 +184,7 @@ export default function App() {
     const scanId = params.get('scan_id');
 
     if (sessionId) {
-      const verifyPaymentAndRestore = async () => {
+      const verifyAndRecover = async () => {
         try {
           const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
           const data = await res.json();
@@ -192,7 +192,6 @@ export default function App() {
             setUserProfile({ isPaid: true });
             setIsDemoView(false);
 
-            // Recover user's stored analysis from sessionStorage
             const targetScanId = scanId || data.scanId;
             let restored = null;
             if (targetScanId) {
@@ -201,7 +200,7 @@ export default function App() {
                 try {
                   restored = JSON.parse(cached);
                 } catch (e) {
-                  console.error("Failed to parse cached scan", e);
+                  console.error("Cache parsing error", e);
                 }
               }
             }
@@ -210,25 +209,25 @@ export default function App() {
               setScanResult(restored);
               setStep('results');
             } else {
-              setError("Payment verified! If your report does not display automatically, please re-run your photos to view your unlocked results.");
+              setError("Payment verified. If your report does not display, re-upload your photos to immediately view your unlocked guide.");
               setStep('upload');
             }
           } else {
-            setError(data.error || "Payment session could not be verified. Access was not granted.");
+            setError(data.error || "Payment session could not be verified.");
             setUserProfile({ isPaid: false });
           }
         } catch (err) {
-          setError("Failed to verify payment with the server.");
+          setError("Failed to verify payment with server.");
           setUserProfile({ isPaid: false });
         } finally {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       };
-      verifyPaymentAndRestore();
+      verifyAndRecover();
     }
   }, []);
 
-  // Comprehensive reset: clears all states and navigation
+  // Reliable global reset
   const handleReset = () => {
     setCurrentRoute('scan');
     setStep('upload');
@@ -289,18 +288,16 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Unable to assess the uploaded images. Please ensure your photos are clear and show a real person.");
+        throw new Error(data.error || "Unable to assess uploaded images. Please ensure photos are clear and show a real person.");
       }
 
-      // Generate and attach a unique scan ID
       const generatedScanId = `scn_${Date.now()}`;
       data.scanId = generatedScanId;
 
-      // Cache report to sessionStorage so Stripe redirect can recover it
       try {
         sessionStorage.setItem(`aurascan_${generatedScanId}`, JSON.stringify(data));
       } catch (storageErr) {
-        console.warn("sessionStorage quota exceeded or disabled", storageErr);
+        console.warn("Storage quota exceeded", storageErr);
       }
 
       setIsDemoView(false);
@@ -441,13 +438,13 @@ export default function App() {
             className="font-bold text-lg tracking-tight flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 rounded-lg p-1"
             tabIndex={0}
             role="button"
-            aria-label="AuraScan AI Homepage"
+            aria-label="Return to AuraScan AI Homepage"
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleReset(); }}
           >
             <Sparkles className="text-violet-500" size={22} /> AuraScan AI
           </div>
           
-          <nav className="flex items-center gap-4 sm:gap-6 text-xs font-medium text-zinc-400">
+          <nav className="flex items-center gap-3 sm:gap-6 text-xs font-medium text-zinc-400">
             <button 
               onClick={() => openModal('how-it-works')} 
               className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
@@ -456,13 +453,13 @@ export default function App() {
             </button>
             <button 
               onClick={() => setCurrentRoute('vs-face')} 
-              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+              className={`hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1 ${currentRoute === 'vs-face' ? 'text-violet-400 font-semibold' : ''}`}
             >
               vs Face Raters
             </button>
             <button 
               onClick={() => setCurrentRoute('vs-color')} 
-              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
+              className={`hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1 ${currentRoute === 'vs-color' ? 'text-violet-400 font-semibold' : ''}`}
             >
               vs Color Palettes
             </button>
@@ -493,7 +490,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Comparison Route 1: vs Face Raters */}
+        {/* COMPARISON VIEW: vs Face Raters */}
         {currentRoute === 'vs-face' && (
           <SEOComparisonView 
             title="AuraScan AI vs Appearance & Face Raters"
@@ -503,7 +500,7 @@ export default function App() {
           />
         )}
 
-        {/* Comparison Route 2: vs Color Palettes */}
+        {/* COMPARISON VIEW: vs Color Palettes */}
         {currentRoute === 'vs-color' && (
           <SEOComparisonView 
             title="AuraScan AI vs Standalone Colour Analyzers"
@@ -513,7 +510,7 @@ export default function App() {
           />
         )}
 
-        {/* Step 1: Upload View (High Above the Fold) */}
+        {/* MAIN SCAN VIEW */}
         {currentRoute === 'scan' && step === 'upload' && (
           <div className="flex flex-col items-center">
             
@@ -524,9 +521,31 @@ export default function App() {
               </span>
             </h1>
 
-            <p className="text-zinc-300 text-center max-w-xl text-xs sm:text-sm mb-6">
-              Upload two photos to receive clear suggestions on colours, clothing layers, and camera angles. Free initial preview; £7.99 for your complete 6-part action guide.
+            <p className="text-zinc-300 text-center max-w-xl text-xs sm:text-sm mb-5">
+              Upload two photos to receive clear suggestions on colours, clothing layers, and camera angles. Free initial preview; £7.99 one-time payment for your complete 6-part action guide.
             </p>
+
+            {/* PRE-UPLOAD PROOF BANNER */}
+            <div className="w-full max-w-2xl bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 mb-5 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-1.5 shrink-0">
+                  <div className="w-5 h-5 rounded-full border border-zinc-700 bg-[#203047]" title="Deep Navy" />
+                  <div className="w-5 h-5 rounded-full border border-zinc-700 bg-[#176B70]" title="Deep Teal" />
+                  <div className="w-5 h-5 rounded-full border border-zinc-700 bg-[#743F50]" title="Muted Burgundy" />
+                </div>
+                <div className="text-left">
+                  <span className="text-zinc-200 font-semibold block text-[11px]">Representative Advice Output</span>
+                  <span className="text-zinc-400 text-[10px]">Real guides provide testable palettes and repeatable lighting rules.</span>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsSampleExpanded(true)}
+                className="text-[11px] font-semibold text-violet-400 hover:text-violet-300 shrink-0"
+              >
+                Inspect Sample →
+              </button>
+            </div>
 
             {/* Quick Context Selectors */}
             <div className="w-full max-w-2xl bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 mb-5 text-xs">
@@ -579,12 +598,13 @@ export default function App() {
               <div>
                 <strong className="text-zinc-200">Why two photos?</strong>
                 <p className="text-zinc-400 text-[11px] mt-0.5 leading-relaxed">
-                  The portrait assesses lighting angle and facial color contrast. The standing photo evaluates body silhouette and trouser-to-top proportions. Accepted formats: JPEG/PNG up to 15MB.
+                  The portrait evaluates facial lighting angle and collar contrast. The standing photo evaluates body proportions and trouser-to-layer balance. 
+                  <span className="block mt-1 text-zinc-300">Formats: Standard JPEG/PNG up to 15MB. iPhone users: please export HEIC as standard JPEG.</span>
                 </p>
               </div>
             </div>
 
-            {/* Accessible Upload Controls */}
+            {/* Upload Controls */}
             <div className="grid md:grid-cols-2 gap-4 w-full max-w-2xl mb-5">
               <label 
                 htmlFor="face-upload"
@@ -597,7 +617,7 @@ export default function App() {
                 )}
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-xs sm:text-sm">{faceImage ? 'Portrait Attached' : '1. Close-up Portrait'}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Window daylight, eye-level, neutral expression</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Window daylight, eye-level, neutral expression</p>
                   <span className="inline-block mt-2 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300">
                     {faceImage ? 'Replace Photo' : 'Select Photo (JPEG/PNG)'}
                   </span>
@@ -623,7 +643,7 @@ export default function App() {
                 )}
                 <div className="relative z-10 text-center pointer-events-none px-4">
                   <p className="font-semibold text-xs sm:text-sm">{bodyImage ? 'Standing Photo Attached' : '2. Standing Photo'}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Head to knees, standard standing posture</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Head to knees, standard standing posture</p>
                   <span className="inline-block mt-2 px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300">
                     {bodyImage ? 'Replace Photo' : 'Select Photo (JPEG/PNG)'}
                   </span>
@@ -639,20 +659,20 @@ export default function App() {
               </label>
             </div>
 
-            {/* Clear Free Call-to-Action */}
+            {/* Clear Call-to-Action */}
             <button 
               onClick={executeScan}
               disabled={!faceImage || !bodyImage}
-              className="px-8 py-3 bg-zinc-100 text-zinc-950 text-xs sm:text-sm font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white transition-all shadow-md flex items-center gap-2 mb-4 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="px-8 py-3 bg-zinc-100 text-zinc-950 text-xs sm:text-sm font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white transition-all shadow-md flex items-center gap-2 mb-3 focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               Get My Free Preview <Sparkles size={15} />
             </button>
 
-            <p className="text-[11px] text-zinc-400 text-center mb-8">
-              Analysis runs in ephemeral runtime memory. Photos are never stored or used to train models. 18+ only.
+            <p className="text-xs text-zinc-400 text-center mb-8">
+              Confidential analysis in memory. Photos purged immediately upon completion. 18+ only.
             </p>
 
-            {/* Collapsed Sample Showcase */}
+            {/* Sample Showcase */}
             <div className="w-full max-w-3xl mb-12 border border-zinc-800 bg-zinc-950 rounded-2xl p-5 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
@@ -678,6 +698,8 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setIsSampleExpanded(!isSampleExpanded)}
+                    aria-expanded={isSampleExpanded}
+                    aria-controls="sample-report-panel"
                     className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors"
                   >
                     {isSampleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -687,7 +709,7 @@ export default function App() {
               </div>
 
               {isSampleExpanded && (
-                <div className="mt-6 pt-6 border-t border-zinc-900">
+                <div id="sample-report-panel" className="mt-6 pt-6 border-t border-zinc-900">
                   <ReportContent report={alexSampleReport} />
                 </div>
               )}
@@ -696,7 +718,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 2: Processing View */}
+        {/* PROCESSING VIEW */}
         {currentRoute === 'scan' && step === 'loading' && (
           <div className="min-h-[40vh] flex flex-col items-center justify-center text-center" aria-live="polite">
             <div className="relative w-16 h-16 mb-5">
@@ -707,11 +729,11 @@ export default function App() {
               </div>
             </div>
             <h2 className="text-base font-semibold mb-1 text-zinc-200">{loadingText || "Processing photos..."}</h2>
-            <p className="text-xs text-zinc-500">Evaluating angles, contrast, and wardrobe options</p>
+            <p className="text-xs text-zinc-400">Evaluating lighting angles, contrast ratios, and wardrobe layers</p>
           </div>
         )}
 
-        {/* Step 3: Results View */}
+        {/* RESULTS VIEW */}
         {currentRoute === 'scan' && step === 'results' && activeReport && (
           <div className="space-y-6">
             
@@ -725,7 +747,7 @@ export default function App() {
               <span className="text-xs text-zinc-500">Ref: {activeReport.scanId}</span>
             </div>
 
-            {/* Free Assessment Summary Card */}
+            {/* Free Assessment Summary */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <span className="text-[11px] font-bold text-violet-400 uppercase tracking-widest block mb-1">
                 Your Starting Direction
@@ -741,7 +763,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Gated Unlock Prompt */}
+            {/* Gated Unlock */}
             {!userProfile.isPaid ? (
               <div className="rounded-2xl bg-zinc-900 border border-zinc-800 p-8 text-center bg-zinc-950 flex flex-col items-center">
                 <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center mb-3 border border-zinc-800">
@@ -755,14 +777,14 @@ export default function App() {
                   onClick={() => setIsPaywallModalOpen(true)}
                   className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full font-bold text-xs shadow-md transition-all"
                 >
-                  Unlock Complete Guide – £7.99 one-time
+                  Unlock Complete Guide – £7.99 one-time payment
                 </button>
                 <p className="text-[10px] text-zinc-500 mt-2.5">14-day refund guarantee if unsatisfied · Instant access</p>
               </div>
             ) : (
               <div className="space-y-6">
                 
-                {/* Report Print / Export Bar */}
+                {/* Print / Export Bar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
                   <div>
                     <h3 className="font-bold text-xs sm:text-sm text-white flex items-center gap-2">
@@ -784,42 +806,26 @@ export default function App() {
               </div>
             )}
 
-            {/* Save & Social Sharing Suite */}
-            <div className="text-center pt-6 border-t border-zinc-900 mt-8">
-              <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest block mb-1">
-                Save & Share
-              </span>
-              <h3 className="text-base font-bold text-white mb-1">Your Mobile Style Reference</h3>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto mb-4">
-                Save to your camera roll or share your calibrated colour direction with friends.
-              </p>
-
-              <div id="share-card" className="max-w-xs mx-auto aspect-[9/16] bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between shadow-2xl text-left text-xs mb-4">
+            {/* Save Card Generator */}
+            <div className="text-center pt-4">
+              <div id="share-card" className="max-w-xs mx-auto aspect-[9/16] bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between shadow-xl text-left text-xs mb-3">
                 <div>
                   <div className="flex justify-between items-center text-[10px] text-zinc-500 mb-3">
-                    <span className="font-bold tracking-wider text-zinc-300">AURASCAN AI</span>
-                    <span>STYLE BRIEF</span>
+                    <span className="font-bold text-zinc-300">AURASCAN AI</span>
+                    <span>STYLE SUMMARY</span>
                   </div>
-                  <h4 className="text-sm font-extrabold text-white mb-1">Key Style Rules</h4>
-                  <p className="text-[11px] text-violet-400 font-medium leading-snug">{activeReport.suggestedDirection}</p>
+                  <h4 className="text-sm font-extrabold text-white mb-1">Your Style Rules</h4>
+                  <p className="text-[11px] text-violet-400">{activeReport.suggestedDirection}</p>
                 </div>
 
-                <div className="space-y-2.5 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-[11px]">
+                <div className="space-y-2 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-[11px]">
                   <div>
-                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-1">Testable Palette</span>
-                    <div className="flex gap-1.5">
-                      {activeReport.palette?.slice(0, 5).map((p: any) => (
-                        <div key={p.hex} className="w-5 h-5 rounded-full border border-zinc-700 shrink-0" style={{ backgroundColor: p.hex }} title={p.name} />
-                      ))}
-                    </div>
+                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Easy Outfit</span>
+                    <p className="text-zinc-300">Plain top + dark jeans + open overshirt</p>
                   </div>
                   <div>
-                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Recommended Setup</span>
-                    <p className="text-zinc-300 text-[11px]">Indirect daylight · eye-level camera</p>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Core Formula</span>
-                    <p className="text-zinc-300 text-[11px]">Plain dark top + straight jeans + open layer</p>
+                    <span className="text-[9px] text-zinc-500 uppercase font-semibold block mb-0.5">Photo Setup</span>
+                    <p className="text-zinc-300">Window daylight · eye-level camera</p>
                   </div>
                 </div>
 
@@ -829,89 +835,29 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Action Buttons: Download + Native Share */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-sm mx-auto mb-3">
-                <button 
-                  onClick={handleExportCard}
-                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Download size={13} /> Save Image (PNG)
-                </button>
-
-                <button 
-                  onClick={async () => {
-                    const shareText = "Just ran my profile photos through AuraScan AI to dial in my lighting and wardrobe colours. Check it out:";
-                    const shareUrl = "https://aurascan-ai-six.vercel.app";
-
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({
-                          title: "AuraScan AI Style & Photo Guide",
-                          text: shareText,
-                          url: shareUrl,
-                        });
-                      } catch (err) {
-                        // User cancelled
-                      }
-                    } else {
-                      navigator.clipboard.writeText(shareUrl);
-                      alert("Website link copied to clipboard!");
-                    }
-                  }}
-                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Sparkles size={13} /> Share with Friends
-                </button>
-              </div>
-
-              {/* Quick Platform Social Buttons */}
-              <div className="flex items-center justify-center gap-3 text-[11px] text-zinc-400">
-                <span>Quick share:</span>
-                <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Got my profile photo lighting and wardrobe palette dialed in with AuraScan AI: https://aurascan-ai-six.vercel.app")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-emerald-400 transition-colors"
-                >
-                  WhatsApp
-                </a>
-                <span>·</span>
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("Dialed in my profile photo lighting and colour palette with @AuraScanAI. Simple, practical advice from two photos:")}&url=${encodeURIComponent("https://aurascan-ai-six.vercel.app")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-sky-400 transition-colors"
-                >
-                  X (Twitter)
-                </a>
-                <span>·</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText("https://aurascan-ai-six.vercel.app");
-                    alert("Website link copied to clipboard!");
-                  }}
-                  className="hover:text-zinc-200 transition-colors"
-                >
-                  Copy Link
-                </button>
-              </div>
+              <button 
+                onClick={handleExportCard}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-full inline-flex items-center gap-1.5"
+              >
+                <Download size={13} /> Save Summary Card (PNG)
+              </button>
             </div>
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950 py-6 text-xs text-zinc-500">
+      <footer className="border-t border-zinc-900 bg-zinc-950 py-6 text-xs text-zinc-400">
         <div className="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            <span className="font-semibold text-zinc-400">AuraScan AI</span> · Operated by PT Digital Consulting (UK)
+            <span className="font-semibold text-zinc-300">AuraScan AI</span> · Operated by PT Digital Consulting (UK)
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => openModal('privacy')} className="hover:text-zinc-300 transition-colors">Privacy Policy</button>
+            <button onClick={() => openModal('privacy')} className="hover:text-zinc-200">Privacy Policy</button>
             <span>·</span>
-            <button onClick={() => openModal('terms')} className="hover:text-zinc-300 transition-colors">Terms & Refunds</button>
+            <button onClick={() => openModal('terms')} className="hover:text-zinc-200">Terms & Refunds</button>
             <span>·</span>
-            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-300 transition-colors">Contact</a>
+            <a href="mailto:support@aurascan.ai" className="hover:text-zinc-200">Contact</a>
           </div>
         </div>
       </footer>
@@ -933,9 +879,9 @@ export default function App() {
               <X size={16} />
             </button>
             <h3 id="paywall-title" className="text-base font-bold mb-1">Unlock Your Complete Style Guide</h3>
-            <p className="text-xs text-zinc-400 mb-4">6-part personalized action guide: 3 outfits, starter palette, repeatable photo setup, and 7-day action protocol.</p>
+            <p className="text-xs text-zinc-400 mb-4">Complete 6-part action guide: 3 outfits, starter palette, repeatable photo setup, and 7-day action protocol.</p>
             <div className="flex justify-between items-center mb-5 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
-              <span className="text-xs text-zinc-300">One-Time Price</span>
+              <span className="text-xs text-zinc-300">One-Time Payment</span>
               <span className="text-base font-bold text-white">£7.99</span>
             </div>
             <button 
@@ -950,7 +896,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Info Modals with Accessible Focus & Semantic Dialog */}
+      {/* Info Modals */}
       {activeModal && (
         <LegalModal 
           title={
@@ -992,7 +938,7 @@ export default function App() {
   );
 }
 
-// Reusable 6-Part Report Content
+// 6-Part Report Content
 function ReportContent({ report }: { report: any }) {
   if (!report) return null;
 

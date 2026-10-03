@@ -4,14 +4,14 @@ import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   title: 'AI Personal Styling & Profile Photo Advice | AuraScan AI',
-  description: 'Upload two photos for personalised colour, outfit and profile-photo advice. Get a free preview, then unlock your full action guide for £7.99.',
+  description: 'Upload two photos for actionable colour, outfit and profile-photo lighting advice. Free initial preview; unlock your complete 6-part guide for £7.99.',
   metadataBase: new URL('https://aurascan-ai-six.vercel.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     title: 'AI Personal Styling & Profile Photo Advice | AuraScan AI',
-    description: 'Upload two photos for personalised colour, outfit and profile-photo advice. Get a free preview, then unlock your full action guide for £7.99.',
+    description: 'Practical colour palettes, outfit formulas from what you own, and repeatable window lighting setups from two photos.',
     url: 'https://aurascan-ai-six.vercel.app',
     siteName: 'AuraScan AI',
     locale: 'en_GB',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'AI Personal Styling & Profile Photo Advice | AuraScan AI',
-    description: 'Upload two photos for personalised colour, outfit and profile-photo advice. Get a free preview, then unlock your full action guide for £7.99.',
+    description: 'Get personalised colour, outfit and camera setup advice from two photos. Free preview, then £7.99 for your complete action guide.',
   },
 };
 
