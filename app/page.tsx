@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { 
   Lock, Activity, CheckCircle2, 
   Sparkles, Image as ImageIcon, Download, AlertCircle, RefreshCcw,
-  ShieldCheck, Info, FileText, Camera,
-  Check, ChevronDown, ChevronUp, X, Printer, ArrowLeft
+  Info, FileText, Camera,
+  Check, ChevronDown, ChevronUp, X, Printer
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -128,7 +129,6 @@ const compressImage = (file: File): Promise<string> => {
 };
 
 export default function App() {
-  const [currentRoute, setCurrentRoute] = useState<'scan' | 'vs-face' | 'vs-color'>('scan');
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'how-it-works' | null>(null);
 
   // User flow states
@@ -229,7 +229,6 @@ export default function App() {
 
   // Reliable global reset
   const handleReset = () => {
-    setCurrentRoute('scan');
     setStep('upload');
     setFaceImage(null);
     setBodyImage(null);
@@ -451,18 +450,18 @@ export default function App() {
             >
               How It Works
             </button>
-            <button 
-              onClick={() => setCurrentRoute('vs-face')} 
-              className={`hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1 ${currentRoute === 'vs-face' ? 'text-violet-400 font-semibold' : ''}`}
+            <Link 
+              href="/vs-face-raters" 
+              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
             >
               vs Face Raters
-            </button>
-            <button 
-              onClick={() => setCurrentRoute('vs-color')} 
-              className={`hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1 ${currentRoute === 'vs-color' ? 'text-violet-400 font-semibold' : ''}`}
+            </Link>
+            <Link 
+              href="/vs-color-palettes" 
+              className="hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
             >
               vs Color Palettes
-            </button>
+            </Link>
             {step === 'results' && !userProfile.isPaid && (
               <button 
                 onClick={() => setIsPaywallModalOpen(true)} 
@@ -490,28 +489,8 @@ export default function App() {
           </div>
         )}
 
-        {/* COMPARISON VIEW: vs Face Raters */}
-        {currentRoute === 'vs-face' && (
-          <SEOComparisonView 
-            title="AuraScan AI vs Appearance & Face Raters"
-            competitor="Face Rating Sites"
-            description="Assigning an arbitrary beauty score provides zero practical help. AuraScan delivers actionable lighting, clothing colour, and outfit guidance to improve how you look in photos."
-            onBack={() => setCurrentRoute('scan')}
-          />
-        )}
-
-        {/* COMPARISON VIEW: vs Color Palettes */}
-        {currentRoute === 'vs-color' && (
-          <SEOComparisonView 
-            title="AuraScan AI vs Standalone Colour Analyzers"
-            competitor="Generic Swatch Apps"
-            description="Knowing a seasonal label is unhelpful if you don't know how to pair pieces together with what you already own or if poor lighting distorts your photos."
-            onBack={() => setCurrentRoute('scan')}
-          />
-        )}
-
         {/* MAIN SCAN VIEW */}
-        {currentRoute === 'scan' && step === 'upload' && (
+        {step === 'upload' && (
           <div className="flex flex-col items-center">
             
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-center mb-3 leading-tight">
@@ -719,7 +698,7 @@ export default function App() {
         )}
 
         {/* PROCESSING VIEW */}
-        {currentRoute === 'scan' && step === 'loading' && (
+        {step === 'loading' && (
           <div className="min-h-[40vh] flex flex-col items-center justify-center text-center" aria-live="polite">
             <div className="relative w-16 h-16 mb-5">
               <div className="absolute inset-0 border-2 border-zinc-800 rounded-full" />
@@ -734,7 +713,7 @@ export default function App() {
         )}
 
         {/* RESULTS VIEW */}
-        {currentRoute === 'scan' && step === 'results' && activeReport && (
+        {step === 'results' && activeReport && (
           <div className="space-y-6">
             
             <div className="flex justify-between items-center">
@@ -835,12 +814,70 @@ export default function App() {
                 </div>
               </div>
 
-              <button 
-                onClick={handleExportCard}
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs rounded-full inline-flex items-center gap-1.5"
-              >
-                <Download size={13} /> Save Summary Card (PNG)
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-sm mx-auto mb-3">
+                <button 
+                  onClick={handleExportCard}
+                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Download size={13} /> Save Image (PNG)
+                </button>
+
+                <button 
+                  onClick={async () => {
+                    const shareText = "Just ran my profile photos through AuraScan AI to dial in my lighting and wardrobe colours. Check it out:";
+                    const shareUrl = "https://aurascan-ai-six.vercel.app";
+
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: "AuraScan AI Style & Photo Guide",
+                          text: shareText,
+                          url: shareUrl,
+                        });
+                      } catch (err) {
+                        // User cancelled share
+                      }
+                    } else {
+                      navigator.clipboard.writeText(shareUrl);
+                      alert("Website link copied to clipboard!");
+                    }
+                  }}
+                  className="w-full sm:w-auto flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Sparkles size={13} /> Share with Friends
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 text-[11px] text-zinc-400">
+                <span>Quick share:</span>
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Got my profile photo lighting and wardrobe palette dialed in with AuraScan AI: https://aurascan-ai-six.vercel.app")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-400 transition-colors"
+                >
+                  WhatsApp
+                </a>
+                <span>·</span>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("Dialed in my profile photo lighting and colour palette with @AuraScanAI. Simple, practical advice from two photos:")}&url=${encodeURIComponent("https://aurascan-ai-six.vercel.app")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-sky-400 transition-colors"
+                >
+                  X (Twitter)
+                </a>
+                <span>·</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText("https://aurascan-ai-six.vercel.app");
+                    alert("Website link copied to clipboard!");
+                  }}
+                  className="hover:text-zinc-200 transition-colors"
+                >
+                  Copy Link
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1133,49 +1170,6 @@ function LegalModal({ title, children, onClose }: { title: string; children: Rea
         </button>
         <h3 id="modal-title" className="text-sm font-bold text-white mb-3 border-b border-zinc-800 pb-2">{title}</h3>
         {children}
-      </div>
-    </div>
-  );
-}
-
-function SEOComparisonView({ title, competitor, description, onBack }: { title: string; competitor: string; description: string; onBack: () => void }) {
-  return (
-    <div className="py-4 text-left">
-      <button 
-        onClick={onBack} 
-        className="text-xs text-violet-400 hover:underline mb-4 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-violet-500 rounded p-1"
-      >
-        <ArrowLeft size={14} /> Back to Style Guide
-      </button>
-      <h2 className="text-xl sm:text-2xl font-bold mb-2 text-white">{title}</h2>
-      <p className="text-xs text-zinc-400 mb-6 max-w-2xl">{description}</p>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-6">
-        <table className="w-full text-left text-xs">
-          <thead className="border-b border-zinc-800 bg-zinc-950 text-zinc-400">
-            <tr>
-              <th className="p-3">Deliverable</th>
-              <th className="p-3 text-violet-400 font-bold">AuraScan AI</th>
-              <th className="p-3 font-normal">{competitor}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800 text-zinc-300 text-[11px]">
-            <tr>
-              <td className="p-3">Actionable Styling (Not Arbitrary 1–10 Numbers)</td>
-              <td className="p-3 text-emerald-400 font-bold">Yes</td>
-              <td className="p-3 text-zinc-500">No</td>
-            </tr>
-            <tr>
-              <td className="p-3">Multi-Piece Outfit Formulas with Wardrobe Alternatives</td>
-              <td className="p-3 text-emerald-400 font-bold">Yes</td>
-              <td className="p-3 text-zinc-500">No</td>
-            </tr>
-            <tr>
-              <td className="p-3">Repeatable Camera & Lighting Setup Checklist</td>
-              <td className="p-3 text-emerald-400 font-bold">Yes</td>
-              <td className="p-3 text-zinc-500">No</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   );
