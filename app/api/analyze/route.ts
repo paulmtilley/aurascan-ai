@@ -184,8 +184,7 @@ Return ONLY valid JSON matching the schema.`;
     // Active Gemini model IDs
     const candidateModels = [
       'gemini-3.5-flash-lite',
-      'gemini-3.5-flash',
-      'gemini-3.1-flash-lite'
+      'gemini-3.5-flash'
     ];
 
     let lastError: any = null;
