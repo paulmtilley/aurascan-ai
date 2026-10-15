@@ -1,4 +1,3 @@
-cat << 'EOF' > app/api/analyze/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -242,4 +241,3 @@ Return ONLY valid JSON matching the schema.`;
     );
   }
 }
-EOF
