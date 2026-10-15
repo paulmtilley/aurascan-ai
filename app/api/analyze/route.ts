@@ -181,9 +181,11 @@ Return ONLY valid JSON matching the schema.`;
       }
     };
 
+    // Active Gemini model IDs
     const candidateModels = [
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite'
+      'gemini-3.5-flash-lite',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite'
     ];
 
     let lastError: any = null;
@@ -221,11 +223,10 @@ Return ONLY valid JSON matching the schema.`;
 
     const parsedResult = JSON.parse(outputText);
 
-    // If the image fails human presence validation, return a clean 422 error
     if (parsedResult.isValidPhoto === false) {
       return NextResponse.json(
         { 
-          error: parsedResult.rejectionReason || 'We could not detect a person in one or both of the uploaded photos. Please upload clear photographs taken in natural daylight.' 
+          error: parsedResult.rejectionReason || 'We could not detect a person in one or both photos. Please upload genuine photographs taken in natural daylight.' 
         }, 
         { status: 422 }
       );
